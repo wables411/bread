@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ThreeDViewer } from "@/components/ThreeDViewer";
+import { HomeHero } from "@/components/HomeHero";
 
 export default function HomePage() {
   return (
@@ -9,21 +9,14 @@ export default function HomePage() {
           <tbody>
             <tr>
               <td className="w-1/2 align-top pr-4">
-                <div className="h-64 border border-gray-300">
-                  <ThreeDViewer
-                    modelPath="/models/bread-loaf.glb"
-                    className="h-full w-full"
-                    autoRotate
-                  />
-                </div>
+                <HomeHero />
               </td>
               <td className="align-top">
                 <h1 className="text-2xl font-bold mb-2">
-                  Fresh $BREAD – Physical Loaves or Trade the Token on Base
+                  Welcome traveler!
                 </h1>
                 <p className="mb-4">
-                  Order artisan bread loaves and cinnamon rolls. Pay with USDC or
-                  $BREAD token on Base.
+                  Trade in your $BREAD or other tokens here for fresh baked goods.
                 </p>
                 <Link href="/shop" className="text-[#00c] hover:underline">
                   shop now →
@@ -37,18 +30,21 @@ export default function HomePage() {
       <section className="mb-8 border-t border-black pt-6">
         <h2 className="font-bold mb-2">How it works</h2>
         <p>
-          Order → Bake next day → Vacuum seal → Ship day after cooling
+          Order Placed → Bread Baked → Bread Cools → Bread Ships → You Eat Bread
         </p>
       </section>
 
       <section className="mb-8 border-t border-black pt-6">
-        <h2 className="font-bold mb-2">$BREAD Token</h2>
+        <h2 className="font-bold mb-2">Exchange Options</h2>
         <p className="mb-2">
-          Trade $BREAD on Base. Pay for orders with $BREAD or USDC.
+          $BREAD, $CULT, $ETH, USDC
         </p>
-        <Link href="/token" className="text-[#00c] hover:underline">
-          token info →
-        </Link>
+        <div className="flex gap-4 my-4 items-center">
+          <img src="/models/media/bread.png" alt="$BREAD" className="h-12 w-auto max-h-12" style={{ height: 48, maxHeight: 48 }} />
+          <img src="/models/media/cult.png" alt="$CULT" className="h-12 w-auto max-h-12" style={{ height: 48, maxHeight: 48 }} />
+          <img src="/models/media/eth.png" alt="ETH" className="h-12 w-auto max-h-12" style={{ height: 48, maxHeight: 48 }} />
+          <img src="/models/media/usdc.png" alt="USDC" className="h-12 w-auto max-h-12" style={{ height: 48, maxHeight: 48 }} />
+        </div>
       </section>
     </div>
   );

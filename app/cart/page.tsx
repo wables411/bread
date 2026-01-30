@@ -1,20 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useCartStore, CART_MAX_ITEMS } from "@/lib/cart-store";
+import { useCartStore } from "@/lib/cart-store";
+import { useWeeklyInventory } from "@/lib/use-weekly-inventory";
 import { SHIPPING_RATES } from "@/lib/constants";
 import { PriceEquivalents } from "@/components/PriceEquivalents";
 import { toast } from "sonner";
 
 const PRODUCT_NAMES: Record<string, string> = {
   loaf: "Bread Loaf",
-  roll: "Cinnamon Roll Pack",
+  roll: "Cinnabunz (6) + icing",
 };
 
 export default function CartPage() {
-  const { items, updateQty, removeItem, subtotal } = useCartStore();
+  const { items, updateQty, removeItem, subtotal, setWeeklyAvailable } = useCartStore();
+  const { data: inventory } = useWeeklyInventory();
   const [qtyErrors, setQtyErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (inventory) setWeeklyAvailable(inventory.available);
+  }, [inventory, setWeeklyAvailable]);
+
+  const effectiveMax = inventory ? Math.min(10, inventory.available) : 10;
 
   const handleQtyChange = (product: string, newQty: number) => {
     const result = updateQty(product as "loaf" | "roll", Math.max(1, newQty));
@@ -48,7 +56,9 @@ export default function CartPage() {
     <div>
       <h1 className="text-xl font-bold mb-4">Cart</h1>
       <p className="text-sm text-gray-600 mb-2">
-        Max {CART_MAX_ITEMS} items total.
+        {inventory?.available === 0
+          ? "Sold out for this week — check back next week."
+          : `Max ${effectiveMax} items this week (${inventory?.available ?? 10} left).`}
       </p>
       <table className="w-full border border-black" cellPadding={8} cellSpacing={0}>
         <thead>
@@ -67,7 +77,7 @@ export default function CartPage() {
                 <input
                   type="number"
                   min={1}
-                  max={CART_MAX_ITEMS}
+                  max={effectiveMax}
                   value={item.qty}
                   onChange={(e) =>
                     handleQtyChange(

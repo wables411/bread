@@ -1,3 +1,5 @@
 # Add your 3D models here:
+# Add these for custom 3D models (currently using CDN placeholder):
 # - bread-loaf.glb
 # - cinnamon-roll.glb
+# Then update ProductCard.tsx and app/page.tsx modelPath to /models/bread-loaf.glb etc.

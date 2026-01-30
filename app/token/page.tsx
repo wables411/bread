@@ -1,16 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BREAD_TOKEN_ADDRESS, CULT_TOKEN_ADDRESS } from "@/lib/constants";
+import { BREAD_TOKEN_ADDRESS } from "@/lib/constants";
 import { fetchPriceUsd } from "@/lib/prices";
 
 const BREAD_DEXSCREENER = `https://dexscreener.com/base/${BREAD_TOKEN_ADDRESS}`;
 const BREAD_UNISWAP = `https://app.uniswap.org/swap?outputCurrency=${BREAD_TOKEN_ADDRESS}&chain=base`;
 const BREAD_BASESCAN = `https://basescan.org/token/${BREAD_TOKEN_ADDRESS}`;
-
-const CULT_DEXSCREENER = `https://dexscreener.com/ethereum/${CULT_TOKEN_ADDRESS}`;
-const CULT_UNISWAP = `https://app.uniswap.org/swap?outputCurrency=${CULT_TOKEN_ADDRESS}&chain=ethereum`;
-const CULT_ETHERSCAN = `https://etherscan.io/token/${CULT_TOKEN_ADDRESS}`;
 
 function TokenCard({
   name,
@@ -77,28 +73,21 @@ function TokenCard({
 
 export default function TokenPage() {
   const [breadPrice, setBreadPrice] = useState<number | null>(null);
-  const [cultPrice, setCultPrice] = useState<number | null>(null);
   const [breadLoading, setBreadLoading] = useState(true);
-  const [cultLoading, setCultLoading] = useState(true);
 
   useEffect(() => {
-    fetchPriceUsd({ type: "dexscreener", address: BREAD_TOKEN_ADDRESS })
+    fetchPriceUsd({ type: "dexscreener", address: BREAD_TOKEN_ADDRESS, chain: "base" })
       .then(setBreadPrice)
       .finally(() => setBreadLoading(false));
-  }, []);
-
-  useEffect(() => {
-    fetchPriceUsd({ type: "dexscreener", address: CULT_TOKEN_ADDRESS })
-      .then(setCultPrice)
-      .finally(() => setCultLoading(false));
   }, []);
 
   return (
     <div>
       <h1 className="text-xl font-bold mb-4">Tokens</h1>
       <p className="mb-4">
-        Pay for orders with $BREAD (Base), $CULT (Ethereum), USDC, or ETH on
-        either chain.
+        Tokens currently acceptable to trade for baked goods: $BREAD (Base),
+        USDC, or ETH on either chain. Connect your wallet to use Reown
+        AppKit&apos;s built-in swap and onramp.
       </p>
 
       <TokenCard
@@ -111,18 +100,6 @@ export default function TokenPage() {
         explorerLink={BREAD_BASESCAN}
         chain="Base"
         onCopy={() => navigator.clipboard.writeText(BREAD_TOKEN_ADDRESS)}
-      />
-
-      <TokenCard
-        name="$CULT (Milady Cult Coin)"
-        address={CULT_TOKEN_ADDRESS}
-        price={cultPrice}
-        loading={cultLoading}
-        dexLink={CULT_DEXSCREENER}
-        swapLink={CULT_UNISWAP}
-        explorerLink={CULT_ETHERSCAN}
-        chain="Ethereum"
-        onCopy={() => navigator.clipboard.writeText(CULT_TOKEN_ADDRESS)}
       />
     </div>
   );

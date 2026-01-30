@@ -1,10 +1,10 @@
 /**
  * Dynamic price fetcher for checkout.
- * Uses DexScreener API (primary) or CoinGecko API (fallback for ETH/USDC).
+ * DexScreener (primary), GeckoTerminal (fallback for Base tokens), CoinGecko (ETH/USDC).
  */
 
 export type PriceSource =
-  | { type: "dexscreener"; address: string }
+  | { type: "dexscreener"; address: string; chain?: "base" | "ethereum" }
   | { type: "coingecko"; id: string };
 
 // DexScreener response shape
@@ -43,6 +43,34 @@ async function fetchFromDexScreener(address: string): Promise<number | null> {
 }
 
 /**
+ * Fetch token price from GeckoTerminal (works for Base tokens DexScreener misses).
+ * Network: base, ethereum, etc. Rate limit ~10/min.
+ */
+async function fetchFromGeckoTerminal(
+  network: string,
+  address: string
+): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://api.geckoterminal.com/api/v2/simple/networks/${network}/token_price/${address}`,
+      { headers: { Accept: "application/json;version=20230203" } }
+    );
+    const data = await res.json();
+    const prices = data?.data?.attributes?.token_prices;
+    if (!prices || typeof prices !== "object") return null;
+    const addr = Object.keys(prices).find(
+      (k) => k.toLowerCase() === address.toLowerCase()
+    );
+    const priceStr = addr ? prices[addr] : null;
+    if (!priceStr) return null;
+    const price = parseFloat(priceStr);
+    return price > 0 ? price : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch price from CoinGecko (ETH, USDC).
  * ids: ethereum, usd-coin
  */
@@ -66,10 +94,18 @@ async function fetchFromCoinGecko(ids: string[]): Promise<Record<string, number>
 
 /**
  * Fetch USD price for a given source.
+ * For Base tokens: DexScreener often returns null → GeckoTerminal fallback.
  */
 export async function fetchPriceUsd(source: PriceSource): Promise<number | null> {
   if (source.type === "dexscreener") {
-    return fetchFromDexScreener(source.address);
+    const price = await fetchFromDexScreener(source.address);
+    if (price != null) return price;
+    // GeckoTerminal fallback for Base tokens (DexScreener often has no pairs)
+    if (source.chain === "base") {
+      const gtPrice = await fetchFromGeckoTerminal("base", source.address);
+      if (gtPrice != null) return gtPrice;
+    }
+    return null;
   }
   const prices = await fetchFromCoinGecko([source.id]);
   return prices[source.id] ?? null;
@@ -100,9 +136,7 @@ export async function fetchAllPrices(): Promise<
 > {
   const [cgPrices, breadPrice, cultPrice] = await Promise.all([
     fetchFromCoinGecko(["ethereum", "usd-coin"]),
-    fetchFromDexScreener(
-      "0xfAF89d9b21740183DDF2E0110497dA1A32Bd52Ca" /* BREAD */
-    ),
+    fetchPriceUsd({ type: "dexscreener", address: "0xfAF89d9b21740183DDF2E0110497dA1A32Bd52Ca", chain: "base" }),
     fetchFromDexScreener(
       "0x0000000000c5dc95539589fbD24BE07c6C14eCa4" /* CULT */
     ),

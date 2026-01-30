@@ -74,7 +74,7 @@ export const PAYMENT_OPTIONS: PaymentOption[] = [
     chain: "base",
     chainId: BASE_CHAIN_ID,
     contractAddress: BREAD_TOKEN_ADDRESS,
-    priceSource: { type: "dexscreener", address: BREAD_TOKEN_ADDRESS },
+    priceSource: { type: "dexscreener", address: BREAD_TOKEN_ADDRESS, chain: "base" },
     decimals: 18,
   },
   {

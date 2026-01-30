@@ -6,7 +6,7 @@ import type { ShippingOption } from "@/lib/types";
 
 const PRODUCT_NAMES: Record<string, string> = {
   loaf: "Bread Loaf",
-  roll: "Cinnamon Roll Pack",
+  roll: "Cinnabunz (6) + icing",
 };
 
 interface OrderSummaryProps {

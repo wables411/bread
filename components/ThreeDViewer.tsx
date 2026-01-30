@@ -39,7 +39,11 @@ function ThreeDViewerInner({
           </div>
         }
       >
-        <Canvas camera={{ position: [0, 0, 3], fov: 45 }}>
+        <Canvas
+          camera={{ position: [0, 0, 3], fov: 45 }}
+          gl={{ alpha: false, antialias: true }}
+        >
+          <color attach="background" args={["#e5e7eb"]} />
           <ambientLight intensity={1} />
           <directionalLight position={[5, 5, 5]} intensity={1} />
           <Model url={modelPath} />

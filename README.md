@@ -20,8 +20,18 @@ All payments are dynamically priced to exact USD at checkout (5% buffer). Prices
 1. `npm install`
 2. Copy `env.example` to `.env.local` and fill in all vars
 3. **Supabase** (see below)
-4. Add 3D models to `/public/models/`: `bread-loaf.glb`, `cinnamon-roll.glb` (optional)
+4. **3D models** (see below)
 5. `npm run dev`
+
+## 3D Models
+
+Place `.glb` files in `/public/models/media/`:
+- Sourdough: `$bread on base.glb` (or `bread-loaf.glb`)
+- Cinnabunz: `cinnabunz.glb` (or `cinnamon-roll.glb`)
+
+Static fallback thumbnails (`bread.png`, `cinnabunz.png`) are in `/public/models/media/`.
+
+**Optional:** For best performance, compress `.glb` files with [gltf.report](https://gltf.report) or [glTF-Transform](https://github.com/donmccurdy/glTF-Transform). Models >2MB may load slowly on mobile.
 
 ## Supabase setup (privacy + free tier)
 

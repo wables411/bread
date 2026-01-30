@@ -15,16 +15,25 @@ function getResend() {
 
 const WEEKLY_CAP = 10;
 
-/** Check orders in last 7 days */
-async function getWeeklyOrderCount(): Promise<number> {
+/** Sum total quantity of baked goods from orders in last 7 days (paid/baked/shipped) */
+async function getWeeklyQuantitySold(): Promise<number> {
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const { count, error } = await supabase
+
+  const { data: orders, error } = await supabase
     .from("orders")
-    .select("*", { count: "exact", head: true })
+    .select("items")
+    .in("status", ["paid", "baked", "shipped"])
     .gte("created_at", sevenDaysAgo.toISOString());
+
   if (error) throw error;
-  return count ?? 0;
+
+  let sold = 0;
+  for (const o of orders ?? []) {
+    const items = (o.items as { product: string; qty: number }[]) ?? [];
+    sold += items.reduce((sum, i) => sum + i.qty, 0);
+  }
+  return sold;
 }
 
 /** Send customer receipt + merchant notification via Resend */
@@ -131,11 +140,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const count = await getWeeklyOrderCount();
-    if (count >= WEEKLY_CAP) {
+    const orderTotalQty = (items as { qty: number }[]).reduce((s, i) => s + i.qty, 0);
+    const soldThisWeek = await getWeeklyQuantitySold();
+    if (soldThisWeek + orderTotalQty > WEEKLY_CAP) {
       return NextResponse.json(
         {
-          error: `Weekly limit reached (${WEEKLY_CAP} orders) — please try again next week.`,
+          error: `Weekly supply limit reached (${WEEKLY_CAP} baked goods/week). ${soldThisWeek} already sold — please try again next week.`,
         },
         { status: 429 }
       );

@@ -1,5 +1,10 @@
 -- Supabase schema for bread store MVP (multi-chain)
 -- Run this in Supabase SQL Editor after creating a project
+--
+-- INVENTORY SYNC: Weekly supply cap (10 baked goods/week) is computed from
+-- orders in the last 7 days with status in ('paid','baked','shipped').
+-- The site fetches /api/weekly-inventory which sums item quantities.
+-- No additional tables needed — the orders.items jsonb already has {product, qty}.
 
 -- Orders table
 CREATE TABLE IF NOT EXISTS orders (

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCartStore } from "@/lib/cart-store";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { AppKitButton } from "@reown/appkit/react";
 
 export function Navbar() {
   const itemCount = useCartStore((s) => s.itemCount());
@@ -32,7 +32,9 @@ export function Navbar() {
                     </span>
                   )}
                 </Link>
-                <Link href="/token">token</Link>
+                <Link href="/token" className="text-[#00c] hover:underline">
+                  token
+                </Link>
               </nav>
             </td>
             <td className="w-1/3 text-right align-top">
@@ -44,7 +46,7 @@ export function Navbar() {
                   readOnly
                   aria-label="Search (placeholder)"
                 />
-                <ConnectButton />
+                <AppKitButton />
               </div>
             </td>
           </tr>

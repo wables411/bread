@@ -1,10 +1,19 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { base, mainnet } from "wagmi/chains";
+import { cookieStorage, createStorage } from "wagmi";
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
+import { base, mainnet } from "@reown/appkit/networks";
 
-export const wagmiConfig = getDefaultConfig({
-  appName: "Bread Store",
-  projectId:
-    process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "bread-store-mvp",
-  chains: [mainnet, base],
+const projectId =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "bread-store-mvp";
+
+export const networks = [mainnet, base];
+
+export const wagmiAdapter = new WagmiAdapter({
+  storage: createStorage({
+    storage: cookieStorage,
+  }),
   ssr: true,
+  projectId,
+  networks,
 });
+
+export const wagmiConfig = wagmiAdapter.wagmiConfig;

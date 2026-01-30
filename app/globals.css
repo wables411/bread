@@ -8,6 +8,10 @@
   --craigslist-link-hover: #0000ff;
 }
 
+html {
+  color-scheme: light;
+}
+
 body {
   background: #fff;
   color: #000;
