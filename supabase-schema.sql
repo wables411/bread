@@ -37,3 +37,5 @@ CREATE TABLE IF NOT EXISTS orders (
 -- Index for dashboard lookups
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+
+-- RLS (privacy): run supabase-rls.sql after this
