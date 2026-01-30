@@ -1,0 +1,7 @@
+# Netlify config for Next.js 15
+[build]
+  command = "npm run build"
+
+# Next.js plugin handles SSR/ISR, publish dir, and functions
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
