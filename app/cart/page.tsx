@@ -60,51 +60,90 @@ export default function CartPage() {
           ? "Sold out for this week — check back next week."
           : `Max ${effectiveMax} items this week (${inventory?.available ?? 10} left).`}
       </p>
-      <table className="w-full border border-black" cellPadding={8} cellSpacing={0}>
-        <thead>
-          <tr className="border-b border-black">
-            <th className="text-left">Item</th>
-            <th className="text-right">Qty</th>
-            <th className="text-right">Price</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={item.product} className="border-b border-gray-300">
-              <td>{PRODUCT_NAMES[item.product] || item.product}</td>
-              <td className="text-right">
-                <input
-                  type="number"
-                  min={1}
-                  max={effectiveMax}
-                  value={item.qty}
-                  onChange={(e) =>
-                    handleQtyChange(
-                      item.product,
-                      parseInt(e.target.value, 10) || 1
-                    )
-                  }
-                  className="border border-black w-16 px-2 py-1 text-right"
-                />
-                {qtyErrors[item.product] && (
-                  <p className="text-xs text-red-600">{qtyErrors[item.product]}</p>
-                )}
-              </td>
-              <td className="text-right">${(item.price * item.qty).toFixed(2)}</td>
-              <td>
-                <button
-                  type="button"
-                  onClick={() => removeItem(item.product)}
-                  className="text-[#00c] hover:underline text-sm"
-                >
-                  remove
-                </button>
-              </td>
+      {/* Mobile: card layout; Desktop: table */}
+      <div className="hidden sm:block">
+        <table className="w-full border border-black" cellPadding={8} cellSpacing={0}>
+          <thead>
+            <tr className="border-b border-black">
+              <th className="text-left">Item</th>
+              <th className="text-right">Qty</th>
+              <th className="text-right">Price</th>
+              <th></th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.product} className="border-b border-gray-300">
+                <td>{PRODUCT_NAMES[item.product] || item.product}</td>
+                <td className="text-right">
+                  <input
+                    type="number"
+                    min={1}
+                    max={effectiveMax}
+                    value={item.qty}
+                    onChange={(e) =>
+                      handleQtyChange(
+                        item.product,
+                        parseInt(e.target.value, 10) || 1
+                      )
+                    }
+                    className="border border-black w-16 px-2 py-1 text-right"
+                  />
+                  {qtyErrors[item.product] && (
+                    <p className="text-xs text-red-600">{qtyErrors[item.product]}</p>
+                  )}
+                </td>
+                <td className="text-right">${(item.price * item.qty).toFixed(2)}</td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(item.product)}
+                    className="text-[#00c] hover:underline text-sm"
+                  >
+                    remove
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="sm:hidden space-y-3">
+        {items.map((item) => (
+          <div key={item.product} className="border border-black p-3">
+            <div className="flex justify-between items-start">
+              <span className="font-bold">{PRODUCT_NAMES[item.product] || item.product}</span>
+              <span>${(item.price * item.qty).toFixed(2)}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <label className="text-sm">qty:</label>
+              <input
+                type="number"
+                min={1}
+                max={effectiveMax}
+                value={item.qty}
+                onChange={(e) =>
+                  handleQtyChange(
+                    item.product,
+                    parseInt(e.target.value, 10) || 1
+                  )
+                }
+                className="border border-black w-16 px-2 py-1 text-right"
+              />
+              <button
+                type="button"
+                onClick={() => removeItem(item.product)}
+                className="text-[#00c] hover:underline text-sm ml-auto"
+              >
+                remove
+              </button>
+            </div>
+            {qtyErrors[item.product] && (
+              <p className="text-xs text-red-600 mt-1">{qtyErrors[item.product]}</p>
+            )}
+          </div>
+        ))}
+      </div>
       <div className="mt-4">
         <p>Subtotal: ${subtotal().toFixed(2)}</p>
         <p className="text-sm text-gray-600">
