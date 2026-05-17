@@ -5,7 +5,6 @@ import { Toaster } from "sonner";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { PreloadModels } from "@/components/PreloadModels";
 
 export const metadata: Metadata = {
   title: "$bread",
@@ -32,7 +31,6 @@ export default async function RootLayout({
     <html lang="en" className="light">
       <body className="bg-white text-black">
         <Providers cookies={cookies}>
-          <PreloadModels />
           <Toaster position="top-center" richColors />
           <div className="min-h-screen flex flex-col">
             <Navbar />
