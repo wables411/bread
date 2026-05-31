@@ -5,6 +5,7 @@ import { useAccount, useReadContract } from "wagmi";
 import { NFT_READ_CONFIG } from "@/lib/on-chain";
 import { useBreadLp } from "@/lib/use-bread-lp";
 import { BREAD_TOKEN_ADDRESS, BASE_CHAIN_ID } from "@/lib/constants";
+import { toast } from "sonner";
 
 const ERC20_BALANCE_ABI = [
   { inputs: [{ name: "account", type: "address" }], name: "balanceOf", outputs: [{ name: "", type: "uint256" }], stateMutability: "view", type: "function" },
@@ -104,7 +105,9 @@ export default function CardPage() {
       const json = await res.json();
       setCard(json.card);
       if (json.card) setNameInput(json.card.display_name);
-    } catch { /* ignore */ }
+    } catch {
+      toast.error("Failed to create card — try again");
+    }
     setLoading(false);
   };
 
