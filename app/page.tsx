@@ -42,6 +42,14 @@ export default function HomePage() {
           <img src="/models/media/usdc.png" alt="USDC" className="h-12 w-auto" />
         </div>
       </section>
+
+      <section className="mb-8 border-t border-black pt-6">
+        <h2 className="font-bold mb-2">Get $BREAD</h2>
+        <p className="text-sm mb-2">Swap any token for $BREAD directly on-site.</p>
+        <Link href="/swap" className="text-[#00c] hover:underline">
+          open swap →
+        </Link>
+      </section>
     </div>
   );
 }

@@ -9,12 +9,14 @@ import { useCartStore } from "@/lib/cart-store";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
 import { SHIPPING_RATES } from "@/lib/constants";
+import { useNftDiscount } from "@/lib/use-nft-discount";
 import type { PaymentMethod, ShippingOption } from "@/lib/types";
 import { toast } from "sonner";
 
 export function CheckoutForm() {
   const router = useRouter();
   const { items, subtotal, clearCart } = useCartStore();
+  const { hasDiscount, discountPercent, applyDiscount } = useNftDiscount();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("usdc-base");
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,8 @@ export function CheckoutForm() {
 
   const formData = watch();
   const shippingOption = (formData.shipping_option as ShippingOption) || "2day";
-  const totalUsd = subtotal() + SHIPPING_RATES[shippingOption];
+  const rawTotal = subtotal() + SHIPPING_RATES[shippingOption];
+  const totalUsd = hasDiscount ? Math.round(applyDiscount(rawTotal) * 100) / 100 : rawTotal;
 
   const prepareOrder = useCallback(async (): Promise<CheckoutFormData | null> => {
     setError(null);
@@ -86,6 +89,7 @@ export function CheckoutForm() {
         if (paymentAmount) params.set("paymentAmount", paymentAmount);
         params.set("paymentChain", paymentMethod.includes("base") ? "base" : "ethereum");
         params.set("txHash", txHash);
+        params.set("totalUsd", totalUsd.toString());
         router.push(`/success?${params.toString()}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Order failed";
@@ -233,7 +237,7 @@ export function CheckoutForm() {
         </div>
 
         <div>
-          <OrderSummary items={items} shippingOption={shippingOption} paymentMethod={paymentMethod} />
+          <OrderSummary items={items} shippingOption={shippingOption} paymentMethod={paymentMethod} discountPercent={discountPercent} />
           <div className="mt-4">
             <h2 className="font-bold mb-2">Payment</h2>
             <PaymentMethodSelector

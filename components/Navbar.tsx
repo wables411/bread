@@ -24,9 +24,9 @@ export function Navbar() {
               </span>
             )}
           </Link>
-          <Link href="/token" className="text-[#00c] hover:underline">
-            token
-          </Link>
+          <Link href="/swap">swap</Link>
+          <Link href="/token">token</Link>
+          <Link href="/card">card</Link>
         </nav>
         <div className="flex items-center gap-2">
           <AppKitButton />

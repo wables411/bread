@@ -13,6 +13,7 @@ interface OrderSummaryProps {
   items: CartItem[];
   shippingOption: ShippingOption;
   paymentMethod?: string | null;
+  discountPercent?: number;
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
@@ -24,10 +25,12 @@ const PAYMENT_LABELS: Record<string, string> = {
   "cult-ethereum": "$CULT (Ethereum)",
 };
 
-export function OrderSummary({ items, shippingOption, paymentMethod }: OrderSummaryProps) {
+export function OrderSummary({ items, shippingOption, paymentMethod, discountPercent = 0 }: OrderSummaryProps) {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
   const shipping = SHIPPING_RATES[shippingOption];
-  const total = subtotal + shipping;
+  const preDiscountTotal = subtotal + shipping;
+  const discountAmount = discountPercent > 0 ? Math.round(preDiscountTotal * (discountPercent / 100) * 100) / 100 : 0;
+  const total = preDiscountTotal - discountAmount;
 
   return (
     <div className="border border-black p-4">
@@ -51,6 +54,12 @@ export function OrderSummary({ items, shippingOption, paymentMethod }: OrderSumm
             </td>
             <td className="text-right">${shipping.toFixed(2)}</td>
           </tr>
+          {discountPercent > 0 && (
+            <tr className="text-green-700">
+              <td colSpan={2}>NFT holder discount ({discountPercent}%)</td>
+              <td className="text-right">-${discountAmount.toFixed(2)}</td>
+            </tr>
+          )}
           <tr className="font-bold">
             <td colSpan={2}>Total</td>
             <td className="text-right">${total.toFixed(2)}</td>

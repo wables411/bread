@@ -53,7 +53,7 @@ async function sendOrderEmails(order: {
   tx_hash: string | null;
 }) {
   const merchantEmail = process.env.YOUR_EMAIL;
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://bread.store";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://orderbread.online";
   const itemsList = order.items
     .map((i) => `- ${i.product} x${i.qty} @ $${i.price}`)
     .join("\n");
@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ orderId: order.id });
+    return NextResponse.json({ orderId: order.id, totalUsd: total_usd });
   } catch (err) {
     console.error("create-order error:", err);
     return NextResponse.json(

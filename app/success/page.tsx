@@ -2,7 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useAccount } from "wagmi";
 
 const PAYMENT_LABELS: Record<string, string> = {
   "usdc-base": "USDC on Base",
@@ -20,11 +21,31 @@ function getExplorerUrl(txHash: string, chain: string): string {
 
 function SuccessContent() {
   const searchParams = useSearchParams();
+  const { address } = useAccount();
   const orderId = searchParams.get("orderId");
   const paymentMethod = searchParams.get("paymentMethod");
   const paymentAmount = searchParams.get("paymentAmount");
   const paymentChain = searchParams.get("paymentChain");
   const txHash = searchParams.get("txHash");
+  const [pointsMsg, setPointsMsg] = useState("");
+
+  // Award loyalty points after successful order
+  useEffect(() => {
+    if (!address || !orderId) return;
+    const totalParam = searchParams.get("totalUsd");
+    if (!totalParam) return;
+
+    fetch("/api/loyalty/award", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wallet: address, total_usd: totalParam, order_id: orderId }),
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.points_earned) setPointsMsg(`+${json.points_earned} loyalty points earned!`);
+      })
+      .catch(() => {});
+  }, [address, orderId, searchParams]);
 
   return (
     <div>
@@ -61,6 +82,9 @@ function SuccessContent() {
         </>
       ) : (
         <p className="mb-4">Order submitted. Check your email for confirmation.</p>
+      )}
+      {pointsMsg && (
+        <p className="text-sm font-bold mb-4">{pointsMsg}</p>
       )}
       <Link href="/shop" className="text-[#00c] hover:underline">
         continue shopping →

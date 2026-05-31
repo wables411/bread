@@ -8,6 +8,8 @@ node_modules/
 out/
 build/
 dist/
+.netlify/
+tsconfig.tsbuildinfo
 
 # Env (never commit secrets)
 .env

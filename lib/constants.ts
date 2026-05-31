@@ -18,6 +18,42 @@ export const USDC_BASE_ADDRESS =
 export const USDC_ETHEREUM_ADDRESS =
   "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" as const;
 
+// NFT Collections
+export const NFT_COLLECTIONS = {
+  // bread-delivery on Base (ERC-1155)
+  breadDelivery: {
+    address: "0xb704c29279664f873dc138e16389c8152a132269" as const,
+    chainId: 8453,
+    standard: "ERC1155" as const,
+  },
+  // cinnabunz on Ethereum (ERC-721)
+  cinnabunz: {
+    address: "0x48ba3ba473a8557496d62e349993b8b00c8041fb" as const,
+    chainId: 1,
+    standard: "ERC721" as const,
+  },
+  // bread-8 on Ethereum (ERC-1155)
+  bread8: {
+    address: "0x135c4e5e427ebed0f8bf7966cec4117b1cae2137" as const,
+    chainId: 1,
+    standard: "ERC1155" as const,
+  },
+} as const;
+
+// Uniswap V3 Pool (BREAD/WETH on Base)
+export const BREAD_POOL_ADDRESS =
+  "0x6b7bda00044C4eeF7447f9363d2DEc70eE1fA7b7" as const;
+export const UNISWAP_V3_POSITIONS_ADDRESS =
+  "0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1" as const; // NonfungiblePositionManager on Base
+
+// Points system
+export const POINTS = {
+  perDollarSpent: 1,
+  perNftHeld: 1, // per check-in (daily)
+  perCheckIn: 1, // daily
+  perLpPosition: 10, // daily
+} as const;
+
 // DexScreener API
 export const DEXSCREENER_TOKEN_URL = (addr: string) =>
   `https://api.dexscreener.com/latest/dex/tokens/${addr}`;

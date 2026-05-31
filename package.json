@@ -11,6 +11,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.9",
     "@hookform/resolvers": "^3.9.0",
+    "@lifi/widget": "^3.40.12",
     "@react-three/drei": "^9.105.0",
     "@react-three/fiber": "^8.17.0",
     "@reown/appkit": "^1.8.17",
