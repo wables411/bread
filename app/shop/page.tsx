@@ -1,6 +1,7 @@
 "use client";
 
 import { ProductCard } from "@/components/ProductCard";
+import { PRODUCTS } from "@/lib/constants";
 import { useWeeklyInventory } from "@/lib/use-weekly-inventory";
 
 export default function ShopPage() {
@@ -27,8 +28,9 @@ export default function ShopPage() {
         </div>
       )}
       <div className="space-y-4">
-        <ProductCard product="loaf" />
-        <ProductCard product="roll" />
+        {PRODUCTS.map((p) => (
+          <ProductCard key={p.id} productId={p.id} />
+        ))}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-export type ProductId = "loaf" | "roll";
+export type ProductId = string;
 
 export interface CartItem {
   product: ProductId;

@@ -26,7 +26,6 @@ export function Navbar() {
           </Link>
           <Link href="/swap">swap</Link>
           <Link href="/token">token</Link>
-          <Link href="/card">card</Link>
         </nav>
         <div className="flex items-center gap-2">
           <AppKitButton />

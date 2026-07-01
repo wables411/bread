@@ -64,8 +64,36 @@ export const SHIPPING_RATES = {
   "2day": 12.99,
 } as const;
 
-// Product prices
-export const PRODUCT_PRICES = {
-  loaf: 10,
-  roll: 20,
-} as const;
+// Product catalog — add/remove/edit items here
+export const PRODUCTS: {
+  id: string;
+  name: string;
+  price: number;
+  thumbnail: string;
+  modelPath?: string;
+  desc: string;
+  inStock: boolean;
+}[] = [
+  {
+    id: "loaf",
+    name: "sourdough loaf",
+    price: 10,
+    thumbnail: "/models/media/bread.png",
+    modelPath: "/models/media/$bread%20on%20base.glb",
+    desc: "10 usdc",
+    inStock: true,
+  },
+  {
+    id: "roll",
+    name: "cinnabunz (6) + icing",
+    price: 20,
+    thumbnail: "/models/media/cinnabunz.png",
+    modelPath: "/models/media/cinnabunz.glb",
+    desc: "20 usdc",
+    inStock: false,
+  },
+];
+
+export const PRODUCT_PRICES: Record<string, number> = Object.fromEntries(
+  PRODUCTS.map((p) => [p.id, p.price])
+);
