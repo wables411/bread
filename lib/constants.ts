@@ -64,7 +64,11 @@ export const SHIPPING_RATES = {
   "2day": 12.99,
 } as const;
 
+// Shipping weight of box + padding, added once per order (Pirate Ship CSV export)
+export const PACKAGING_WEIGHT_OZ = 8;
+
 // Product catalog — add/remove/edit items here
+// weightOz: ESTIMATED shipping weight per item — weigh your actual products and adjust
 export const PRODUCTS: {
   id: string;
   name: string;
@@ -73,6 +77,7 @@ export const PRODUCTS: {
   modelPath?: string;
   desc: string;
   inStock: boolean;
+  weightOz: number;
 }[] = [
   {
     id: "loaf",
@@ -82,6 +87,7 @@ export const PRODUCTS: {
     modelPath: "/models/media/$bread%20on%20base.glb",
     desc: "10 usdc",
     inStock: true,
+    weightOz: 32,
   },
   {
     id: "roll",
@@ -91,6 +97,7 @@ export const PRODUCTS: {
     modelPath: "/models/media/cinnabunz.glb",
     desc: "20 usdc",
     inStock: false,
+    weightOz: 36,
   },
 ];
 

@@ -64,6 +64,18 @@ netlify deploy --build --prod
 
 `NEXT_PUBLIC_*` values are baked in at build time from `.env.local`; server secrets (`RESEND_API_KEY`, etc.) are bundled with the server function on deploy.
 
+## Shipping labels (Pirate Ship)
+
+Pirate Ship has no API — integration is via their spreadsheet import:
+
+1. Download open orders as CSV:
+   `https://orderbread.online/api/orders-export?key=<ORDERS_EXPORT_KEY>` (add `&days=30` to widen the window; default 14, shipped orders excluded)
+2. In Pirate Ship: **Ship → Import a Spreadsheet** → upload the CSV. First time, map the columns (Recipient Name, Address Line 1, City, State, Zipcode, Weight oz, Order ID) — Pirate Ship remembers the mapping afterwards.
+3. Buy labels. "Shipping Speed" column: 2-Day → USPS Priority Mail, Overnight → Priority Mail Express.
+4. Rows where "Payment Status" is not `paid` say `CHECK: ...` — verify that payment on the explorer before shipping.
+
+Item weights are estimates set in `PRODUCTS` (`weightOz`) plus `PACKAGING_WEIGHT_OZ` in `lib/constants.ts` — weigh a real packed box and adjust.
+
 ## Workflow
 
 Order → Bake next day → Vacuum seal → Ship day after cooling. New orders arrive by email (Resend) and can be inspected with `netlify blobs:list orders`.
