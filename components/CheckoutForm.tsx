@@ -15,11 +15,13 @@ import { toast } from "sonner";
 
 export function CheckoutForm() {
   const router = useRouter();
-  const { items, subtotal, clearCart } = useCartStore();
+  const { items, subtotal, clearCart, itemCount } = useCartStore();
   const { hasDiscount, discountPercent, applyDiscount } = useNftDiscount();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("usdc-base");
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  /** Set when payment confirmed on-chain but order submission failed — allows retry */
+  const [failedTxHash, setFailedTxHash] = useState<string | null>(null);
   const handlePaymentDetails = useCallback((amount: string) => setPaymentAmount(amount), []);
 
   const {
@@ -44,8 +46,26 @@ export function CheckoutForm() {
     setError(null);
     const valid = await trigger();
     if (!valid) return null;
+
+    // Confirm supply BEFORE taking payment so no one pays for sold-out stock
+    try {
+      const res = await fetch("/api/weekly-inventory");
+      const inv = await res.json();
+      if (res.ok && typeof inv.available === "number" && itemCount() > inv.available) {
+        const msg =
+          inv.available === 0
+            ? "Sold out for this week — check back next week."
+            : `Only ${inv.available} left this week. Please reduce your cart.`;
+        setError(msg);
+        toast.error(msg);
+        return null;
+      }
+    } catch {
+      // Inventory check unavailable — the server re-checks at order creation
+    }
+
     return getValues();
-  }, [trigger, getValues]);
+  }, [trigger, getValues, itemCount]);
 
   const createOrderOnPaySuccess = useCallback(
     async (txHash: string) => {
@@ -82,6 +102,7 @@ export function CheckoutForm() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Order failed");
 
+        setFailedTxHash(null);
         clearCart();
         toast.success("Order placed!");
         const params = new URLSearchParams({ orderId: json.orderId || "" });
@@ -93,6 +114,7 @@ export function CheckoutForm() {
         router.push(`/success?${params.toString()}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Order failed";
+        setFailedTxHash(txHash);
         setError(msg);
         toast.error(msg);
       }
@@ -254,6 +276,28 @@ export function CheckoutForm() {
 
       {error && (
         <p className="text-red-600">{error}</p>
+      )}
+
+      {failedTxHash && (
+        <div className="border border-red-600 p-4 bg-red-50">
+          <p className="font-bold text-red-700 mb-1">
+            Your payment went through, but we couldn&apos;t record your order.
+          </p>
+          <p className="text-sm mb-2 break-all">
+            Transaction: <span className="font-mono">{failedTxHash}</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => createOrderOnPaySuccess(failedTxHash)}
+            className="border border-black px-4 py-2 text-[#00c] hover:underline"
+          >
+            Retry order submission
+          </button>
+          <p className="text-sm text-gray-600 mt-2">
+            If retrying keeps failing, email us with the transaction hash above —
+            your payment is safe and we&apos;ll handle your order manually.
+          </p>
+        </div>
       )}
 
       <p className="text-sm text-gray-600">

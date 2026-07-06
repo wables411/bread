@@ -1,28 +1,12 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { weeklyQuantitySold, WEEKLY_CAP } from "@/lib/orders";
 
-const WEEKLY_CAP = 10;
+export const dynamic = "force-dynamic";
 
-/** Sum total quantity of baked goods from orders in last 7 days (paid/baked/shipped) */
+/** Baked goods sold in the last 7 days vs the weekly cap. */
 export async function GET() {
   try {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const { data: orders, error } = await supabase
-      .from("orders")
-      .select("items")
-      .in("status", ["paid", "baked", "shipped"])
-      .gte("created_at", sevenDaysAgo.toISOString());
-
-    if (error) throw error;
-
-    let soldThisWeek = 0;
-    for (const o of orders ?? []) {
-      const items = (o.items as { product: string; qty: number }[]) ?? [];
-      soldThisWeek += items.reduce((sum, i) => sum + i.qty, 0);
-    }
-
+    const soldThisWeek = await weeklyQuantitySold();
     const available = Math.max(0, WEEKLY_CAP - soldThisWeek);
 
     return NextResponse.json({

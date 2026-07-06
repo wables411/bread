@@ -88,7 +88,7 @@ export function PaymentMethodSelector({
     <div>
       <h2 className="font-bold mb-2">Payment</h2>
       <p className="text-sm text-gray-600 mb-2">
-        Select token + chain. Amount is priced to exact USD at checkout (5%
+        Select token + chain. Amount is priced to exact USD at checkout (0.5%
         buffer).
       </p>
 

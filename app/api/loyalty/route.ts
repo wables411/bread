@@ -1,23 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getCard, createCard, saveCard } from "@/lib/loyalty";
+
+export const dynamic = "force-dynamic";
 
 // GET /api/loyalty?wallet=0x...
 export async function GET(req: NextRequest) {
   const wallet = req.nextUrl.searchParams.get("wallet")?.toLowerCase();
   if (!wallet) return NextResponse.json({ error: "wallet required" }, { status: 400 });
 
-  const { data, error } = await supabaseAdmin
-    .from("loyalty_cards")
-    .select("*")
-    .eq("wallet_address", wallet)
-    .single();
-
-  if (error && error.code !== "PGRST116") {
-    console.error("Loyalty GET error:", error);
-    return NextResponse.json({ error: "DB error", detail: error.message }, { status: 500 });
+  try {
+    const card = await getCard(wallet);
+    return NextResponse.json({ card });
+  } catch (err) {
+    console.error("Loyalty GET error:", err);
+    return NextResponse.json({ error: "Storage error" }, { status: 500 });
   }
-
-  return NextResponse.json({ card: data || null });
 }
 
 // POST /api/loyalty — create or update card
@@ -27,47 +24,20 @@ export async function POST(req: NextRequest) {
     const wallet = body.wallet?.toLowerCase();
     if (!wallet) return NextResponse.json({ error: "wallet required" }, { status: 400 });
 
-    const { data: existing } = await supabaseAdmin
-      .from("loyalty_cards")
-      .select("id")
-      .eq("wallet_address", wallet)
-      .single();
+    const existing = await getCard(wallet);
 
     if (existing) {
-      // Update display_name and pfp_url if provided
-      const updates: Record<string, string> = {};
-      if (body.display_name) updates.display_name = body.display_name.slice(0, 32);
-      if (body.pfp_url) updates.pfp_url = body.pfp_url;
-
-      if (Object.keys(updates).length > 0) {
-        await supabaseAdmin
-          .from("loyalty_cards")
-          .update(updates)
-          .eq("wallet_address", wallet);
-      }
-
-      const { data: card } = await supabaseAdmin
-        .from("loyalty_cards")
-        .select("*")
-        .eq("wallet_address", wallet)
-        .single();
-
-      return NextResponse.json({ card });
+      if (body.display_name) existing.display_name = String(body.display_name).slice(0, 32);
+      if (body.pfp_url) existing.pfp_url = String(body.pfp_url).slice(0, 500);
+      await saveCard(existing);
+      return NextResponse.json({ card: existing });
     }
 
-    // Create new card
-    const { data: card, error } = await supabaseAdmin
-      .from("loyalty_cards")
-      .insert({
-        wallet_address: wallet,
-        display_name: body.display_name?.slice(0, 32) || "baker",
-        pfp_url: body.pfp_url || null,
-      })
-      .select()
-      .single();
-
-    if (error) return NextResponse.json({ error: "Failed to create card" }, { status: 500 });
-
+    const card = await createCard(
+      wallet,
+      body.display_name ? String(body.display_name).slice(0, 32) : "baker",
+      body.pfp_url ? String(body.pfp_url).slice(0, 500) : null
+    );
     return NextResponse.json({ card });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

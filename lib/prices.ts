@@ -112,7 +112,7 @@ export async function fetchPriceUsd(source: PriceSource): Promise<number | null>
 }
 
 /**
- * Calculate exact token amount to send (5% buffer, 6 decimals).
+ * Calculate exact token amount to send (0.5% buffer, 6 decimals).
  * Formula: Math.ceil((total_usd * 1.005) / priceUsd * 1e6) / 1e6
  */
 export function calcTokenAmount(totalUsd: number, priceUsd: number): number {

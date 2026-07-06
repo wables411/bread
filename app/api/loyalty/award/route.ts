@@ -1,61 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getCard, saveCard, addLedgerEntry } from "@/lib/loyalty";
+import { findOrderById, updateOrder } from "@/lib/orders";
 import { POINTS } from "@/lib/constants";
 
-// POST /api/loyalty/award — award points for an order
+export const dynamic = "force-dynamic";
+
+// POST /api/loyalty/award — award points for a real, un-awarded order.
+// Points come from the stored order total, never from the request body.
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const wallet = body.wallet?.toLowerCase();
-    const totalUsd = parseFloat(body.total_usd);
     const orderId = body.order_id;
 
-    if (!wallet || !totalUsd || !orderId) {
-      return NextResponse.json({ error: "wallet, total_usd, order_id required" }, { status: 400 });
+    if (!wallet || !orderId) {
+      return NextResponse.json({ error: "wallet, order_id required" }, { status: 400 });
     }
 
-    // Check if card exists
-    const { data: card } = await supabaseAdmin
-      .from("loyalty_cards")
-      .select("*")
-      .eq("wallet_address", wallet)
-      .single();
-
+    const card = await getCard(wallet);
     if (!card) {
       return NextResponse.json({ error: "No loyalty card" }, { status: 404 });
     }
 
-    // Check if points already awarded for this order (idempotency)
-    const { data: existing } = await supabaseAdmin
-      .from("points_ledger")
-      .select("id")
-      .eq("wallet_address", wallet)
-      .eq("reason", "order")
-      .filter("metadata->>order_id", "eq", orderId)
-      .single();
-
-    if (existing) {
+    const order = await findOrderById(String(orderId));
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    if (order.loyalty_awarded) {
       return NextResponse.json({ card, message: "Points already awarded for this order" });
     }
+    // Only the wallet that paid can claim the points
+    if (order.payer_address && order.payer_address.toLowerCase() !== wallet) {
+      return NextResponse.json({ error: "Wallet did not pay for this order" }, { status: 403 });
+    }
 
-    // Award points: 1 per $1
-    const pointsEarned = Math.floor(totalUsd) * POINTS.perDollarSpent;
+    const pointsEarned = Math.floor(order.total_usd) * POINTS.perDollarSpent;
 
-    const newTotal = card.points + pointsEarned;
-    await supabaseAdmin
-      .from("loyalty_cards")
-      .update({ points: newTotal })
-      .eq("wallet_address", wallet);
+    order.loyalty_awarded = true;
+    await updateOrder(order);
 
-    await supabaseAdmin.from("points_ledger").insert({
+    card.points += pointsEarned;
+    await saveCard(card);
+    await addLedgerEntry({
       wallet_address: wallet,
       amount: pointsEarned,
       reason: "order",
-      metadata: { order_id: orderId, total_usd: totalUsd },
+      metadata: { order_id: order.id, total_usd: order.total_usd },
     });
 
-    return NextResponse.json({ card: { ...card, points: newTotal }, points_earned: pointsEarned });
-  } catch {
+    return NextResponse.json({ card, points_earned: pointsEarned });
+  } catch (err) {
+    console.error("loyalty award error:", err);
     return NextResponse.json({ error: "Failed to award points" }, { status: 500 });
   }
 }
