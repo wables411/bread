@@ -6,7 +6,8 @@ export function Footer() {
       </p>
       <p className="mt-1">
         Thank you for supporting our tiny bakery. Due to current size restraints
-        we are limited to 10 orders per week, shipping orders monday-thursday –{" "}
+        we are limited to 10 baked goods per week. Order monday–friday (closed
+        weekends); all orders ship out monday –{" "}
         <a
           href="https://x.com/breadonbase"
           target="_blank"

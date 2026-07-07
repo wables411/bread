@@ -76,7 +76,7 @@ function SuccessContent() {
             </p>
           )}
           <p className="text-sm text-gray-600 mb-4">
-            We&apos;ll bake next day, vacuum seal, and ship the day after
+            All orders ship out on Monday — baked fresh, vacuum sealed after
             cooling. Check your email for updates.
           </p>
         </>

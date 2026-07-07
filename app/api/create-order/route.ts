@@ -10,6 +10,7 @@ import {
 import { verifyPayment, senderHoldsDiscountNft } from "@/lib/verify-payment";
 import { getPaymentOption } from "@/lib/payment-options";
 import { PRODUCTS, SHIPPING_RATES } from "@/lib/constants";
+import { isShopOpen, CLOSED_MESSAGE } from "@/lib/shop-schedule";
 import type { OrderItem, ShippingOption } from "@/lib/types";
 
 const NFT_DISCOUNT_PERCENT = 15;
@@ -49,7 +50,7 @@ async function sendOrderEmails(order: StoredOrder) {
     <p>Total: $${order.total_usd.toFixed(2)} USD</p>
     <p>Payment: ${order.payment_method} — ${order.payment_amount ?? "—"}</p>
     ${order.tx_hash ? `<p>Tx: <a href="${explorer}">${order.tx_hash}</a></p>` : ""}
-    <p>Order prep starts in next 24hrs, ships within 24hrs after cooling.</p>
+    <p>All orders ship out on Monday — baked fresh, vacuum-sealed after cooling.</p>
   `;
 
   const flags: string[] = [];
@@ -57,6 +58,7 @@ async function sendOrderEmails(order: StoredOrder) {
     flags.push(`⚠ Payment verification: ${order.verification} — ${order.verification_detail ?? ""}`);
   }
   if (order.over_cap) flags.push("⚠ Order exceeds weekly cap (payment already received)");
+  if (order.after_hours) flags.push("⚠ Order placed while shop was closed (weekend) — payment already received");
 
   const notifyHtml = `
     <h2>New order #${order.id}</h2>
@@ -227,8 +229,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Weekly supply cap. Payment already happened, so verified payments are
-    // recorded even over cap (flagged for the merchant) rather than dropped.
+    // Weekend closure + weekly supply cap. Payment already happened, so
+    // verified payments are recorded and flagged rather than dropped.
+    const afterHours = !isShopOpen();
+    if (afterHours && verification !== "verified") {
+      return NextResponse.json({ error: CLOSED_MESSAGE }, { status: 403 });
+    }
+
     const orderQty = orderItems.reduce((s, i) => s + i.qty, 0);
     const soldThisWeek = await weeklyQuantitySold();
     const overCap = soldThisWeek + orderQty > WEEKLY_CAP;
@@ -263,6 +270,7 @@ export async function POST(req: NextRequest) {
       verification_detail: verificationDetail,
       paid_usd_estimate: verify.paidUsd ?? null,
       over_cap: overCap || undefined,
+      after_hours: afterHours || undefined,
     });
 
     try {

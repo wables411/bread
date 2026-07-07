@@ -5,6 +5,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { kv } from "./blob-store";
+import { currentBatchStartDate, shopDate } from "./shop-schedule";
 import type { Order, OrderItem, PaymentMethod, ShippingOption } from "./types";
 
 export const WEEKLY_CAP = 10;
@@ -19,6 +20,8 @@ export interface StoredOrder extends Order {
   verification_detail?: string | null;
   paid_usd_estimate?: number | null;
   over_cap?: boolean;
+  /** Placed while the shop was closed (weekend) with an already-verified payment */
+  after_hours?: boolean;
   loyalty_awarded?: boolean;
 }
 
@@ -77,12 +80,17 @@ export async function findOrderByTxHash(
 
 const COUNTED_STATUSES = new Set(["paid", "baked", "shipped", "pending"]);
 
-/** Total baked goods sold in the last 7 days (statuses that consume supply). */
+/**
+ * Total baked goods in the current order batch (Saturday → Friday,
+ * ships the following Monday). The weekly cap applies per batch.
+ */
 export async function weeklyQuantitySold(): Promise<number> {
-  const recent = await listRecentOrders(7);
+  const batchStart = currentBatchStartDate();
+  const recent = await listRecentOrders(9);
   let sold = 0;
   for (const o of recent) {
     if (!COUNTED_STATUSES.has(o.status ?? "paid")) continue;
+    if (shopDate(new Date(o.created_at)) < batchStart) continue;
     sold += (o.items ?? []).reduce((sum, i) => sum + i.qty, 0);
   }
   return sold;

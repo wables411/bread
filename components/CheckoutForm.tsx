@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +22,25 @@ export function CheckoutForm() {
   const [error, setError] = useState<string | null>(null);
   /** Set when payment confirmed on-chain but order submission failed — allows retry */
   const [failedTxHash, setFailedTxHash] = useState<string | null>(null);
+  /** null = loading; { open, shipDate, message } once /api/weekly-inventory answers */
+  const [shopStatus, setShopStatus] = useState<{
+    open: boolean;
+    shipDate?: string;
+    message?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/weekly-inventory")
+      .then((r) => r.json())
+      .then((inv) =>
+        setShopStatus({
+          open: inv.shopOpen !== false,
+          shipDate: inv.shipDate,
+          message: inv.closedMessage,
+        })
+      )
+      .catch(() => setShopStatus({ open: true })); // fail open; server re-checks
+  }, []);
   const handlePaymentDetails = useCallback((amount: string) => setPaymentAmount(amount), []);
 
   const {
@@ -47,10 +66,17 @@ export function CheckoutForm() {
     const valid = await trigger();
     if (!valid) return null;
 
-    // Confirm supply BEFORE taking payment so no one pays for sold-out stock
+    // Confirm the shop is open and supply exists BEFORE taking payment
     try {
       const res = await fetch("/api/weekly-inventory");
       const inv = await res.json();
+      if (res.ok && inv.shopOpen === false) {
+        const msg = inv.closedMessage || "Shop is closed on weekends.";
+        setShopStatus({ open: false, shipDate: inv.shipDate, message: msg });
+        setError(msg);
+        toast.error(msg);
+        return null;
+      }
       if (res.ok && typeof inv.available === "number" && itemCount() > inv.available) {
         const msg =
           inv.available === 0
@@ -234,7 +260,7 @@ export function CheckoutForm() {
                     {...register("shipping_option")}
                     value="2day"
                   />{" "}
-                  2-Day $12.99
+                  Priority (2–3 day) $12.99
                 </label>
                 <label>
                   <input
@@ -242,9 +268,14 @@ export function CheckoutForm() {
                     {...register("shipping_option")}
                     value="overnight"
                   />{" "}
-                  Overnight $24.99
+                  Express (1 day) $24.99
                 </label>
               </div>
+              <p className="text-sm text-gray-600 mt-1">
+                All orders ship out on Monday
+                {shopStatus?.shipDate ? ` (${shopStatus.shipDate})` : ""} —
+                delivery time is after ship-out.
+              </p>
             </div>
             <div>
               <label htmlFor="notes">Notes</label>
@@ -261,15 +292,27 @@ export function CheckoutForm() {
         <div>
           <OrderSummary items={items} shippingOption={shippingOption} paymentMethod={paymentMethod} discountPercent={discountPercent} />
           <div className="mt-4">
-            <h2 className="font-bold mb-2">Payment</h2>
-            <PaymentMethodSelector
-              paymentMethod={paymentMethod}
-              setPaymentMethod={setPaymentMethod}
-              totalUsd={totalUsd}
-              onPaymentDetails={handlePaymentDetails}
-              prepareOrder={prepareOrder}
-              onPaySuccess={createOrderOnPaySuccess}
-            />
+            {shopStatus && !shopStatus.open ? (
+              <div className="border border-amber-400 bg-amber-50 p-4">
+                <p className="font-bold mb-1">Shop closed for the weekend</p>
+                <p className="text-sm">
+                  {shopStatus.message ||
+                    "Order Monday through Friday — all orders ship out on Monday."}
+                </p>
+              </div>
+            ) : (
+              <>
+                <h2 className="font-bold mb-2">Payment</h2>
+                <PaymentMethodSelector
+                  paymentMethod={paymentMethod}
+                  setPaymentMethod={setPaymentMethod}
+                  totalUsd={totalUsd}
+                  onPaymentDetails={handlePaymentDetails}
+                  prepareOrder={prepareOrder}
+                  onPaySuccess={createOrderOnPaySuccess}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

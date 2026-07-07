@@ -78,4 +78,4 @@ Item weights are estimates set in `PRODUCTS` (`weightOz`) plus `PACKAGING_WEIGHT
 
 ## Workflow
 
-Order → Bake next day → Vacuum seal → Ship day after cooling. New orders arrive by email (Resend) and can be inspected with `netlify blobs:list orders`.
+Orders are accepted **Monday–Friday** (shop closed weekends, enforced in checkout + API, timezone in `lib/shop-schedule.ts`). All orders **ship out Monday**: bake fresh, vacuum seal, drop off with the Pirate Ship labels. The weekly 10-item cap applies per batch (Saturday→Friday). New orders arrive by email (Resend) and can be inspected with `netlify blobs:list orders`.
