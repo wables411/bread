@@ -71,7 +71,7 @@ Pirate Ship has no API — integration is via their spreadsheet import:
 1. Download open orders as CSV:
    `https://orderbread.online/api/orders-export?key=<ORDERS_EXPORT_KEY>` (add `&days=30` to widen the window; default 14, shipped orders excluded)
 2. In Pirate Ship: **Ship → Import a Spreadsheet** → upload the CSV. First time, map the columns (Recipient Name, Address Line 1, City, State, Zipcode, Weight oz, Order ID) — Pirate Ship remembers the mapping afterwards.
-3. Buy labels. "Shipping Speed" column: 2-Day → USPS Priority Mail, Overnight → Priority Mail Express.
+3. Buy labels. The "Shipping Service" column says what the customer paid for (UPS 3 Day Select $24 / UPS 2nd Day Air $28); box dimensions are included per row.
 4. Rows where "Payment Status" is not `paid` say `CHECK: ...` — verify that payment on the explorer before shipping.
 
 Item weights are estimates set in `PRODUCTS` (`weightOz`) plus `PACKAGING_WEIGHT_OZ` in `lib/constants.ts` — weigh a real packed box and adjust.

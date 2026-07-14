@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { listRecentOrders } from "@/lib/orders";
-import { PRODUCTS, PACKAGING_WEIGHT_OZ } from "@/lib/constants";
+import {
+  PRODUCTS,
+  PACKAGING_WEIGHT_OZ,
+  SHIPPING_LABELS,
+  BOX_DIMENSIONS_IN,
+} from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +60,10 @@ export async function GET(req: NextRequest) {
       "Items",
       "Total Quantity",
       "Weight (oz)",
-      "Shipping Speed",
+      "Length (in)",
+      "Width (in)",
+      "Height (in)",
+      "Shipping Service",
       "Order Total (USD)",
       "Payment Status",
       "Notes",
@@ -84,7 +92,10 @@ export async function GET(req: NextRequest) {
         itemsDesc,
         qty,
         weightOz,
-        o.shipping_option === "overnight" ? "Overnight" : "2-Day",
+        BOX_DIMENSIONS_IN.length,
+        BOX_DIMENSIONS_IN.width,
+        BOX_DIMENSIONS_IN.height,
+        SHIPPING_LABELS[o.shipping_option] ?? o.shipping_option,
         o.total_usd.toFixed(2),
         o.verification === "verified" ? "paid" : `CHECK: ${o.verification}`,
         o.notes ?? "",

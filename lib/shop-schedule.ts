@@ -5,8 +5,8 @@
  * All day boundaries use SHOP_TIMEZONE, not the customer's clock.
  */
 
-// The bakery's local timezone — change if you're not on US Pacific time
-export const SHOP_TIMEZONE = "America/Los_Angeles";
+// The bakery's local timezone (Mississippi = US Central)
+export const SHOP_TIMEZONE = "America/Chicago";
 
 const WEEKDAY_FMT = new Intl.DateTimeFormat("en-US", {
   timeZone: SHOP_TIMEZONE,

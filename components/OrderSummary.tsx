@@ -1,7 +1,7 @@
 "use client";
 
 import type { CartItem } from "@/lib/types";
-import { SHIPPING_RATES } from "@/lib/constants";
+import { SHIPPING_RATES, SHIPPING_LABELS } from "@/lib/constants";
 import type { ShippingOption } from "@/lib/types";
 
 const PRODUCT_NAMES: Record<string, string> = {
@@ -50,7 +50,7 @@ export function OrderSummary({ items, shippingOption, paymentMethod, discountPer
           </tr>
           <tr>
             <td colSpan={2}>
-              Shipping ({shippingOption === "overnight" ? "Overnight" : "2-Day"})
+              Shipping ({SHIPPING_LABELS[shippingOption]})
             </td>
             <td className="text-right">${shipping.toFixed(2)}</td>
           </tr>

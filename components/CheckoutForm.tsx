@@ -8,7 +8,7 @@ import { checkoutSchema, type CheckoutFormData } from "@/lib/validation";
 import { useCartStore } from "@/lib/cart-store";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
-import { SHIPPING_RATES } from "@/lib/constants";
+import { SHIPPING_RATES, SHIPPING_LABELS } from "@/lib/constants";
 import { useNftDiscount } from "@/lib/use-nft-discount";
 import type { PaymentMethod, ShippingOption } from "@/lib/types";
 import { toast } from "sonner";
@@ -52,12 +52,12 @@ export function CheckoutForm() {
   } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      shipping_option: "2day",
+      shipping_option: "ground",
     },
   });
 
   const formData = watch();
-  const shippingOption = (formData.shipping_option as ShippingOption) || "2day";
+  const shippingOption = (formData.shipping_option as ShippingOption) || "ground";
   const rawTotal = subtotal() + SHIPPING_RATES[shippingOption];
   const totalUsd = hasDiscount ? Math.round(applyDiscount(rawTotal) * 100) / 100 : rawTotal;
 
@@ -258,17 +258,17 @@ export function CheckoutForm() {
                   <input
                     type="radio"
                     {...register("shipping_option")}
-                    value="2day"
+                    value="ground"
                   />{" "}
-                  Priority (2–3 day) $12.99
+                  {SHIPPING_LABELS.ground} ${SHIPPING_RATES.ground}
                 </label>
                 <label>
                   <input
                     type="radio"
                     {...register("shipping_option")}
-                    value="overnight"
+                    value="air"
                   />{" "}
-                  Express (1 day) $24.99
+                  {SHIPPING_LABELS.air} ${SHIPPING_RATES.air}
                 </label>
               </div>
               <p className="text-sm text-gray-600 mt-1">

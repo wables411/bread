@@ -47,8 +47,8 @@ export default function CartPage() {
   }
 
   const shippingEstimate = Math.min(
-    SHIPPING_RATES.overnight,
-    SHIPPING_RATES["2day"]
+    SHIPPING_RATES.ground,
+    SHIPPING_RATES.air
   );
   const totalEstimate = subtotal() + shippingEstimate;
 

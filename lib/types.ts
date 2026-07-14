@@ -12,7 +12,7 @@ export interface OrderItem {
   price: number;
 }
 
-export type ShippingOption = "overnight" | "2day";
+export type ShippingOption = "ground" | "air";
 
 // Payment method = token + chain (e.g. usdc-base, eth-ethereum)
 export type PaymentMethod =
