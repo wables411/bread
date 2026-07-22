@@ -6,5 +6,9 @@ import { fetchPriceUsd } from "./prices";
  * Returns price in USD or null if unavailable.
  */
 export async function fetchBreadPrice(): Promise<number | null> {
-  return fetchPriceUsd({ type: "dexscreener", address: BREAD_TOKEN_ADDRESS });
+  return fetchPriceUsd({
+    type: "dexscreener",
+    address: BREAD_TOKEN_ADDRESS,
+    chain: "base",
+  });
 }

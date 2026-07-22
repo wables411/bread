@@ -70,6 +70,47 @@ async function fetchFromGeckoTerminal(
   }
 }
 
+// $BREAD/WETH Uniswap V3 pool on Base — read directly when indexers have no
+// price (DexScreener/GeckoTerminal dropped the pair for low volume, but the
+// pool's exchange rate is always live on-chain; this matches what the Uniswap
+// site shows). token0 = WETH, token1 = BREAD (both 18 decimals).
+const BREAD_V3_POOL = "0x6b7bda00044C4eeF7447f9363d2DEc70eE1fA7b7";
+const SLOT0_SELECTOR = "0x3850c7bd";
+const BASE_RPCS = ["https://mainnet.base.org", "https://base.llamarpc.com"];
+
+async function fetchBreadPriceOnchain(): Promise<number | null> {
+  for (const rpc of BASE_RPCS) {
+    try {
+      const res = await fetch(rpc, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_call",
+          params: [{ to: BREAD_V3_POOL, data: SLOT0_SELECTOR }, "latest"],
+        }),
+      });
+      const json = await res.json();
+      const hex: string | undefined = json?.result;
+      if (!hex || hex.length < 66) continue;
+      // First 32-byte word of slot0 is sqrtPriceX96 (uint160)
+      const sqrtPriceX96 = Number(BigInt(hex.slice(0, 66)));
+      if (!Number.isFinite(sqrtPriceX96) || sqrtPriceX96 <= 0) continue;
+      // token1-per-token0 = (sqrtPriceX96 / 2^96)^2 → BREAD per WETH
+      const breadPerWeth = (sqrtPriceX96 / 2 ** 96) ** 2;
+      if (!Number.isFinite(breadPerWeth) || breadPerWeth <= 0) continue;
+      const ethUsd = (await fetchFromCoinGecko(["ethereum"]))["ethereum"];
+      if (!ethUsd) return null;
+      const price = ethUsd / breadPerWeth;
+      return Number.isFinite(price) && price > 0 ? price : null;
+    } catch {
+      // try next RPC
+    }
+  }
+  return null;
+}
+
 /**
  * Fetch price from CoinGecko (ETH, USDC).
  * ids: ethereum, usd-coin
@@ -104,6 +145,13 @@ export async function fetchPriceUsd(source: PriceSource): Promise<number | null>
     if (source.chain === "base") {
       const gtPrice = await fetchFromGeckoTerminal("base", source.address);
       if (gtPrice != null) return gtPrice;
+    }
+    // Last resort for $BREAD: live pool ratio straight from Uniswap V3
+    if (
+      source.address.toLowerCase() ===
+      "0xfaf89d9b21740183ddf2e0110497da1a32bd52ca"
+    ) {
+      return fetchBreadPriceOnchain();
     }
     return null;
   }
