@@ -70,15 +70,20 @@ async function fetchFromGeckoTerminal(
   }
 }
 
-// $BREAD/WETH Uniswap V3 pool on Base — read directly when indexers have no
-// price (DexScreener/GeckoTerminal dropped the pair for low volume, but the
-// pool's exchange rate is always live on-chain; this matches what the Uniswap
-// site shows). token0 = WETH, token1 = BREAD (both 18 decimals).
-const BREAD_V3_POOL = "0x6b7bda00044C4eeF7447f9363d2DEc70eE1fA7b7";
+// Uniswap V3 pools on Base, read directly when indexers/CoinGecko are down.
+// The pool's exchange rate is always live on-chain — this matches what the
+// Uniswap site shows. slot0() selector = 0x3850c7bd; its first 32-byte word
+// is sqrtPriceX96, and token1-per-token0 = (sqrtPriceX96 / 2^96)^2.
 const SLOT0_SELECTOR = "0x3850c7bd";
 const BASE_RPCS = ["https://mainnet.base.org", "https://base.llamarpc.com"];
+// BREAD/WETH 0.3%: token0 = WETH, token1 = BREAD (both 18 decimals)
+const BREAD_V3_POOL = "0x6b7bda00044C4eeF7447f9363d2DEc70eE1fA7b7";
+// WETH/USDC 0.05%: token0 = WETH (18), token1 = USDC (6) — deepest ETH pool
+// on Base, used as the ETH/USD fallback when CoinGecko rate-limits (429).
+const ETH_USDC_V3_POOL = "0xd0b53D9277642d899DF5C87A3966A349A798F224";
 
-async function fetchBreadPriceOnchain(): Promise<number | null> {
+/** Read slot0's sqrtPriceX96 from a V3 pool, trying each RPC in turn. */
+async function readSqrtPriceX96(pool: string): Promise<number | null> {
   for (const rpc of BASE_RPCS) {
     try {
       const res = await fetch(rpc, {
@@ -88,27 +93,50 @@ async function fetchBreadPriceOnchain(): Promise<number | null> {
           jsonrpc: "2.0",
           id: 1,
           method: "eth_call",
-          params: [{ to: BREAD_V3_POOL, data: SLOT0_SELECTOR }, "latest"],
+          params: [{ to: pool, data: SLOT0_SELECTOR }, "latest"],
         }),
       });
       const json = await res.json();
       const hex: string | undefined = json?.result;
       if (!hex || hex.length < 66) continue;
-      // First 32-byte word of slot0 is sqrtPriceX96 (uint160)
       const sqrtPriceX96 = Number(BigInt(hex.slice(0, 66)));
-      if (!Number.isFinite(sqrtPriceX96) || sqrtPriceX96 <= 0) continue;
-      // token1-per-token0 = (sqrtPriceX96 / 2^96)^2 → BREAD per WETH
-      const breadPerWeth = (sqrtPriceX96 / 2 ** 96) ** 2;
-      if (!Number.isFinite(breadPerWeth) || breadPerWeth <= 0) continue;
-      const ethUsd = (await fetchFromCoinGecko(["ethereum"]))["ethereum"];
-      if (!ethUsd) return null;
-      const price = ethUsd / breadPerWeth;
-      return Number.isFinite(price) && price > 0 ? price : null;
+      if (Number.isFinite(sqrtPriceX96) && sqrtPriceX96 > 0) return sqrtPriceX96;
     } catch {
       // try next RPC
     }
   }
   return null;
+}
+
+/** Live ETH/USD from the Base WETH/USDC pool (USDC has 6 decimals → *1e12). */
+async function fetchEthUsdOnchain(): Promise<number | null> {
+  const sqrt = await readSqrtPriceX96(ETH_USDC_V3_POOL);
+  if (sqrt === null) return null;
+  const ethUsd = (sqrt / 2 ** 96) ** 2 * 1e12;
+  return Number.isFinite(ethUsd) && ethUsd > 0 ? ethUsd : null;
+}
+
+/**
+ * ETH/USD with fallback: CoinGecko (aggregated, primary) → on-chain pool.
+ * A single source of truth so ETH pricing degrades gracefully everywhere.
+ */
+export async function getEthUsd(): Promise<number | null> {
+  const cg = (await fetchFromCoinGecko(["ethereum"]))["ethereum"];
+  if (cg) return cg;
+  return fetchEthUsdOnchain();
+}
+
+/** $BREAD/USD from the Uniswap pool ratio × ETH/USD. */
+async function fetchBreadPriceOnchain(): Promise<number | null> {
+  const sqrt = await readSqrtPriceX96(BREAD_V3_POOL);
+  if (sqrt === null) return null;
+  // (sqrtPriceX96 / 2^96)^2 → BREAD per WETH (token1 per token0)
+  const breadPerWeth = (sqrt / 2 ** 96) ** 2;
+  if (!Number.isFinite(breadPerWeth) || breadPerWeth <= 0) return null;
+  const ethUsd = await getEthUsd();
+  if (!ethUsd) return null;
+  const price = ethUsd / breadPerWeth;
+  return Number.isFinite(price) && price > 0 ? price : null;
 }
 
 /**
@@ -155,6 +183,11 @@ export async function fetchPriceUsd(source: PriceSource): Promise<number | null>
     }
     return null;
   }
+  // CoinGecko sources. USDC is a dollar — never spend a request or risk a
+  // 429 on it. ETH goes through getEthUsd() so it falls back to the on-chain
+  // pool when CoinGecko rate-limits.
+  if (source.id === "usd-coin") return 1;
+  if (source.id === "ethereum") return getEthUsd();
   const prices = await fetchFromCoinGecko([source.id]);
   return prices[source.id] ?? null;
 }
@@ -182,20 +215,18 @@ export type PaymentMethodId =
 export async function fetchAllPrices(): Promise<
   Record<PaymentMethodId, number | null>
 > {
-  const [cgPrices, breadPrice, cultPrice] = await Promise.all([
-    fetchFromCoinGecko(["ethereum", "usd-coin"]),
+  const [eth, breadPrice, cultPrice] = await Promise.all([
+    getEthUsd(), // CoinGecko → on-chain pool fallback
     fetchPriceUsd({ type: "dexscreener", address: "0xfAF89d9b21740183DDF2E0110497dA1A32Bd52Ca", chain: "base" }),
     fetchFromDexScreener(
       "0x0000000000c5dc95539589fbD24BE07c6C14eCa4" /* CULT */
     ),
   ]);
 
-  const usdc = cgPrices["usd-coin"] ?? null;
-  const eth = cgPrices["ethereum"] ?? null;
-
+  // USDC is a dollar — no API call, never null
   return {
-    "usdc-base": usdc,
-    "usdc-ethereum": usdc,
+    "usdc-base": 1,
+    "usdc-ethereum": 1,
     "eth-base": eth,
     "eth-ethereum": eth,
     "bread-base": breadPrice,
