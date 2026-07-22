@@ -8,7 +8,7 @@ import { checkoutSchema, type CheckoutFormData } from "@/lib/validation";
 import { useCartStore } from "@/lib/cart-store";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
-import { PRODUCTS, PACKAGING_WEIGHT_OZ } from "@/lib/constants";
+import { orderWeightOz } from "@/lib/constants";
 import { useNftDiscount } from "@/lib/use-nft-discount";
 import type { PaymentMethod } from "@/lib/types";
 import { toast } from "sonner";
@@ -72,13 +72,8 @@ export function CheckoutForm() {
   const zip = formData.zip || "";
   const [quote, setQuote] = useState<ShippingQuoteState>({ status: "idle" });
 
-  // Order shipping weight — matches the server's calculation
-  const weightOz =
-    PACKAGING_WEIGHT_OZ +
-    items.reduce((sum, i) => {
-      const product = PRODUCTS.find((p) => p.id === i.product);
-      return sum + (product?.weightOz ?? 32) * i.qty;
-    }, 0);
+  // Order shipping weight — same function the server uses
+  const weightOz = orderWeightOz(items);
 
   // Fetch shipping prices once a full ZIP is entered (and when weight changes)
   useEffect(() => {

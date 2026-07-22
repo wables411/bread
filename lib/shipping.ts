@@ -5,18 +5,20 @@
 // bundle would reveal the shop's location. Clients get prices only, via
 // GET /api/shipping-quote.
 //
-// Rates quoted from Pirate Ship's public calculator on 2026-07-21
-// (11.25x8.75x6 box, sampled at 3 lb and 7 lb in every zone; customer price =
-// quoted label cost rounded up + $1 buffer). Every option arrives no later
-// than Wednesday when shipped Monday:
+// Rates quoted from Pirate Ship's public calculator on 2026-07-21/22
+// (11.25x8.75x6 box, sampled at 3, 5 and 8 lb in every zone — the real packed
+// weights of 1, 2 and 3 loaves; customer price = quoted label cost rounded up
+// + $1 buffer). Every option arrives no later than Wednesday when shipped
+// Monday:
 //   - zones 1-3: UPS Ground (1-day scheduled transit; a slip still lands Wed)
 //   - zones 4-8 two-day: UPS 2nd Day Air (guaranteed Wednesday)
 //   - zones 4-8 one-day: UPS Next Day Air Saver (guaranteed Tuesday)
 //   - AK/HI: UPS 2nd Day Air only — overnight to AK/HI costs $100+, not offered
 // Pirate Ship picks the actual cheapest qualifying label at purchase time.
 
-import { PRODUCTS, PACKAGING_WEIGHT_OZ } from "./constants";
-import type { OrderItem } from "./types";
+import { orderWeightOz } from "./constants";
+
+export { orderWeightOz };
 
 export type ShippingSpeed = "oneday" | "twoday";
 
@@ -78,27 +80,29 @@ const AKHI_RANGES: [number, number][] = [
   [995, 999], // AK
 ];
 
-// Customer prices [twoday, oneday] per zone. Tier 1 covers order shipping
-// weight ≤ 48 oz (one loaf); tier 2 covers ≤ 120 oz (two to three items).
+// Customer prices [twoday, oneday] per zone, by real packed weight:
+// tier1 ≤ 48 oz (1 loaf, 3 lb) · tier2 ≤ 80 oz (2 loaves, 5 lb) ·
+// tier3 ≤ 128 oz (3 loaves, 8 lb)
 const CONUS_PRICES: Record<
   number,
-  { tier1: [number, number]; tier2: [number, number] }
+  { tier1: [number, number]; tier2: [number, number]; tier3: [number, number] }
 > = {
-  1: { tier1: [10, 10], tier2: [10, 10] },
-  2: { tier1: [10, 10], tier2: [10, 10] },
-  3: { tier1: [10, 10], tier2: [11, 11] },
-  4: { tier1: [16, 45], tier2: [21, 54] },
-  5: { tier1: [19, 50], tier2: [27, 60] },
-  6: { tier1: [21, 53], tier2: [38, 65] },
-  7: { tier1: [23, 57], tier2: [40, 69] },
-  8: { tier1: [25, 61], tier2: [41, 74] },
+  1: { tier1: [10, 10], tier2: [10, 10], tier3: [10, 10] },
+  2: { tier1: [10, 10], tier2: [10, 10], tier3: [10, 10] },
+  3: { tier1: [10, 10], tier2: [11, 11], tier3: [11, 11] },
+  4: { tier1: [16, 45], tier2: [17, 48], tier3: [22, 57] },
+  5: { tier1: [19, 50], tier2: [19, 53], tier3: [28, 64] },
+  6: { tier1: [21, 53], tier2: [21, 57], tier3: [41, 69] },
+  7: { tier1: [23, 57], tier2: [26, 61], tier3: [43, 73] },
+  8: { tier1: [25, 61], tier2: [29, 65], tier3: [45, 78] },
 };
 
-const AKHI_PRICES = { tier1: 49, tier2: 63 };
+const AKHI_PRICES = { tier1: 49, tier2: 53, tier3: 66 };
 
 const TIER1_MAX_OZ = 48;
-const TIER2_MAX_OZ = 120;
-// Above tier 2, UPS air climbs ~$3-4/lb; charge $5/lb started to stay covered
+const TIER2_MAX_OZ = 80;
+const TIER3_MAX_OZ = 128;
+// Above tier 3, UPS air climbs ~$3-4/lb; charge $5/lb started to stay covered
 const OVERWEIGHT_PER_LB = 5;
 
 function inRanges(zip3: number, ranges: [number, number][]): boolean {
@@ -108,17 +112,6 @@ function inRanges(zip3: number, ranges: [number, number][]): boolean {
 function zoneForZip3(zip3: number): number | null {
   const hit = ZONE_RANGES.find(([lo, hi]) => zip3 >= lo && zip3 <= hi);
   return hit ? hit[2] : null;
-}
-
-/** Total shipping weight for an order: products + box/padding. */
-export function orderWeightOz(items: OrderItem[]): number {
-  return (
-    PACKAGING_WEIGHT_OZ +
-    items.reduce((sum, i) => {
-      const product = PRODUCTS.find((p) => p.id === i.product);
-      return sum + (product?.weightOz ?? 32) * i.qty;
-    }, 0)
-  );
 }
 
 export interface ShippingQuote {
@@ -144,10 +137,15 @@ export function quoteShipping(zip: string, weightOz: number): ShippingQuote {
   }
 
   const overweightFee =
-    weightOz > TIER2_MAX_OZ
-      ? Math.ceil((weightOz - TIER2_MAX_OZ) / 16) * OVERWEIGHT_PER_LB
+    weightOz > TIER3_MAX_OZ
+      ? Math.ceil((weightOz - TIER3_MAX_OZ) / 16) * OVERWEIGHT_PER_LB
       : 0;
-  const tier: "tier1" | "tier2" = weightOz <= TIER1_MAX_OZ ? "tier1" : "tier2";
+  const tier: "tier1" | "tier2" | "tier3" =
+    weightOz <= TIER1_MAX_OZ
+      ? "tier1"
+      : weightOz <= TIER2_MAX_OZ
+        ? "tier2"
+        : "tier3";
 
   if (inRanges(zip3, AKHI_RANGES)) {
     return {

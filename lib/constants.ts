@@ -66,8 +66,25 @@ export const SHIPPING_FROM_USD = 10;
 // Shipping box (inches) — included in the Pirate Ship CSV export
 export const BOX_DIMENSIONS_IN = { length: 11.25, width: 8.75, height: 6 } as const;
 
-// Shipping weight of box + padding, added once per order (Pirate Ship CSV export)
-export const PACKAGING_WEIGHT_OZ = 8;
+// Box + padding weight: small box for 1-2 items, bigger box for 3+.
+// Calibrated to real packed weights: 1 loaf = 3 lb, 2 = 5 lb, 3 = 8 lb.
+export function packagingWeightOz(totalQty: number): number {
+  return totalQty <= 2 ? 16 : 32;
+}
+
+/** Total shipping weight for an order: products + box/padding. */
+export function orderWeightOz(
+  items: { product: string; qty: number }[]
+): number {
+  const totalQty = items.reduce((s, i) => s + i.qty, 0);
+  return (
+    packagingWeightOz(totalQty) +
+    items.reduce((sum, i) => {
+      const product = PRODUCTS.find((p) => p.id === i.product);
+      return sum + (product?.weightOz ?? 32) * i.qty;
+    }, 0)
+  );
+}
 
 // Product catalog — add/remove/edit items here
 // weightOz: ESTIMATED shipping weight per item — weigh your actual products and adjust
