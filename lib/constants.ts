@@ -61,7 +61,7 @@ export const DEXSCREENER_TOKEN_URL = (addr: string) =>
 // Zone-based shipping prices live in lib/shipping.ts (server-side only, so
 // the client bundle carries nothing derived from the origin ZIP). The
 // cheapest possible option, shown as a floor in the cart:
-export const SHIPPING_FROM_USD = 10;
+export const SHIPPING_FROM_USD = 11;
 
 // Shipping box (inches) — included in the Pirate Ship CSV export
 export const BOX_DIMENSIONS_IN = { length: 11.25, width: 8.75, height: 6 } as const;

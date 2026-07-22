@@ -8,8 +8,8 @@
 // Rates quoted from Pirate Ship's public calculator on 2026-07-21/22
 // (11.25x8.75x6 box, sampled at 3, 5 and 8 lb in every zone — the real packed
 // weights of 1, 2 and 3 loaves; customer price = quoted label cost rounded up
-// + $1 buffer). Every option arrives no later than Wednesday when shipped
-// Monday:
+// + $2 buffer/margin). Every option arrives no later than Wednesday when
+// shipped Monday:
 //   - zones 1-3: UPS Ground (1-day scheduled transit; a slip still lands Wed)
 //   - zones 4-8 two-day: UPS 2nd Day Air (guaranteed Wednesday)
 //   - zones 4-8 one-day: UPS Next Day Air Saver (guaranteed Tuesday)
@@ -87,17 +87,17 @@ const CONUS_PRICES: Record<
   number,
   { tier1: [number, number]; tier2: [number, number]; tier3: [number, number] }
 > = {
-  1: { tier1: [10, 10], tier2: [10, 10], tier3: [10, 10] },
-  2: { tier1: [10, 10], tier2: [10, 10], tier3: [10, 10] },
-  3: { tier1: [10, 10], tier2: [11, 11], tier3: [11, 11] },
-  4: { tier1: [16, 45], tier2: [17, 48], tier3: [22, 57] },
-  5: { tier1: [19, 50], tier2: [19, 53], tier3: [28, 64] },
-  6: { tier1: [21, 53], tier2: [21, 57], tier3: [41, 69] },
-  7: { tier1: [23, 57], tier2: [26, 61], tier3: [43, 73] },
-  8: { tier1: [25, 61], tier2: [29, 65], tier3: [45, 78] },
+  1: { tier1: [11, 11], tier2: [11, 11], tier3: [11, 11] },
+  2: { tier1: [11, 11], tier2: [11, 11], tier3: [11, 11] },
+  3: { tier1: [11, 11], tier2: [12, 12], tier3: [12, 12] },
+  4: { tier1: [17, 46], tier2: [18, 49], tier3: [23, 58] },
+  5: { tier1: [20, 51], tier2: [20, 54], tier3: [29, 65] },
+  6: { tier1: [22, 54], tier2: [22, 58], tier3: [42, 70] },
+  7: { tier1: [24, 58], tier2: [27, 62], tier3: [44, 74] },
+  8: { tier1: [26, 62], tier2: [30, 66], tier3: [46, 79] },
 };
 
-const AKHI_PRICES = { tier1: 49, tier2: 53, tier3: 66 };
+const AKHI_PRICES = { tier1: 50, tier2: 54, tier3: 67 };
 
 const TIER1_MAX_OZ = 48;
 const TIER2_MAX_OZ = 80;
