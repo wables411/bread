@@ -8,10 +8,22 @@ import { checkoutSchema, type CheckoutFormData } from "@/lib/validation";
 import { useCartStore } from "@/lib/cart-store";
 import { OrderSummary } from "./OrderSummary";
 import { PaymentMethodSelector } from "./PaymentMethodSelector";
-import { SHIPPING_RATES, SHIPPING_LABELS } from "@/lib/constants";
+import { PRODUCTS, PACKAGING_WEIGHT_OZ } from "@/lib/constants";
 import { useNftDiscount } from "@/lib/use-nft-discount";
-import type { PaymentMethod, ShippingOption } from "@/lib/types";
+import type { PaymentMethod } from "@/lib/types";
 import { toast } from "sonner";
+
+/** Quote from /api/shipping-quote — prices only, computed server-side */
+type ShippingQuoteState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "unsupported"; reason: string }
+  | { status: "ready"; twoday: number; oneday: number | null };
+
+const SPEED_LABELS = {
+  oneday: "1-day (arrives Tuesday)",
+  twoday: "2-day (arrives Wednesday)",
+} as const;
 
 export function CheckoutForm() {
   const router = useRouter();
@@ -52,19 +64,90 @@ export function CheckoutForm() {
   } = useForm<CheckoutFormData>({
     resolver: zodResolver(checkoutSchema),
     defaultValues: {
-      shipping_option: "ground",
+      shipping_option: "twoday",
     },
   });
 
   const formData = watch();
-  const shippingOption = (formData.shipping_option as ShippingOption) || "ground";
-  const rawTotal = subtotal() + SHIPPING_RATES[shippingOption];
+  const zip = formData.zip || "";
+  const [quote, setQuote] = useState<ShippingQuoteState>({ status: "idle" });
+
+  // Order shipping weight — matches the server's calculation
+  const weightOz =
+    PACKAGING_WEIGHT_OZ +
+    items.reduce((sum, i) => {
+      const product = PRODUCTS.find((p) => p.id === i.product);
+      return sum + (product?.weightOz ?? 32) * i.qty;
+    }, 0);
+
+  // Fetch shipping prices once a full ZIP is entered (and when weight changes)
+  useEffect(() => {
+    if (!/^\d{5}$/.test(zip)) {
+      setQuote({ status: "idle" });
+      return;
+    }
+    let cancelled = false;
+    setQuote({ status: "loading" });
+    const timer = setTimeout(() => {
+      fetch(`/api/shipping-quote?zip=${zip}&weightOz=${weightOz}`)
+        .then((r) => r.json())
+        .then((q) => {
+          if (cancelled) return;
+          if (q.supported) {
+            setQuote({ status: "ready", twoday: q.twoday, oneday: q.oneday });
+          } else {
+            setQuote({
+              status: "unsupported",
+              reason: q.reason || "We can't ship to this ZIP code.",
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled)
+            setQuote({
+              status: "unsupported",
+              reason: "Couldn't look up shipping — try again.",
+            });
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [zip, weightOz]);
+
+  const requestedOption = formData.shipping_option || "twoday";
+  // 1-day isn't offered everywhere (e.g. AK/HI) — fall back to 2-day
+  const shippingOption: "oneday" | "twoday" =
+    requestedOption === "oneday" &&
+    quote.status === "ready" &&
+    quote.oneday === null
+      ? "twoday"
+      : (requestedOption as "oneday" | "twoday");
+  const shippingPrice =
+    quote.status === "ready"
+      ? shippingOption === "oneday"
+        ? (quote.oneday ?? quote.twoday)
+        : quote.twoday
+      : null;
+  const rawTotal = subtotal() + (shippingPrice ?? 0);
   const totalUsd = hasDiscount ? Math.round(applyDiscount(rawTotal) * 100) / 100 : rawTotal;
 
   const prepareOrder = useCallback(async (): Promise<CheckoutFormData | null> => {
     setError(null);
     const valid = await trigger();
     if (!valid) return null;
+
+    // Shipping price must be resolved from the ZIP before payment
+    if (quote.status !== "ready") {
+      const msg =
+        quote.status === "unsupported"
+          ? quote.reason
+          : "Enter your ZIP code so we can price shipping first.";
+      setError(msg);
+      toast.error(msg);
+      return null;
+    }
 
     // Confirm the shop is open and supply exists BEFORE taking payment
     try {
@@ -91,7 +174,7 @@ export function CheckoutForm() {
     }
 
     return getValues();
-  }, [trigger, getValues, itemCount]);
+  }, [trigger, getValues, itemCount, quote]);
 
   const createOrderOnPaySuccess = useCallback(
     async (txHash: string) => {
@@ -253,28 +336,45 @@ export function CheckoutForm() {
             </div>
             <div>
               <label>Shipping</label>
-              <div className="mt-1">
-                <label className="mr-4">
-                  <input
-                    type="radio"
-                    {...register("shipping_option")}
-                    value="ground"
-                  />{" "}
-                  {SHIPPING_LABELS.ground} ${SHIPPING_RATES.ground}
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    {...register("shipping_option")}
-                    value="air"
-                  />{" "}
-                  {SHIPPING_LABELS.air} ${SHIPPING_RATES.air}
-                </label>
-              </div>
+              {quote.status === "ready" ? (
+                <div className="mt-1 space-y-1">
+                  <label className="block">
+                    <input
+                      type="radio"
+                      {...register("shipping_option")}
+                      value="twoday"
+                    />{" "}
+                    {SPEED_LABELS.twoday} ${quote.twoday}
+                  </label>
+                  {quote.oneday !== null ? (
+                    <label className="block">
+                      <input
+                        type="radio"
+                        {...register("shipping_option")}
+                        value="oneday"
+                      />{" "}
+                      {SPEED_LABELS.oneday} ${quote.oneday}
+                    </label>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      1-day delivery isn&apos;t available for this address.
+                    </p>
+                  )}
+                </div>
+              ) : quote.status === "unsupported" ? (
+                <p className="text-sm text-red-600 mt-1">{quote.reason}</p>
+              ) : quote.status === "loading" ? (
+                <p className="text-sm text-gray-600 mt-1">
+                  Getting shipping prices…
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600 mt-1">
+                  Enter your ZIP code above to see shipping prices.
+                </p>
+              )}
               <p className="text-sm text-gray-600 mt-1">
                 All orders ship out on Monday
-                {shopStatus?.shipDate ? ` (${shopStatus.shipDate})` : ""} —
-                delivery time is after ship-out.
+                {shopStatus?.shipDate ? ` (${shopStatus.shipDate})` : ""}.
               </p>
             </div>
             <div>
@@ -290,7 +390,16 @@ export function CheckoutForm() {
         </div>
 
         <div>
-          <OrderSummary items={items} shippingOption={shippingOption} paymentMethod={paymentMethod} discountPercent={discountPercent} />
+          <OrderSummary
+            items={items}
+            shipping={
+              shippingPrice !== null
+                ? { label: SPEED_LABELS[shippingOption], price: shippingPrice }
+                : null
+            }
+            paymentMethod={paymentMethod}
+            discountPercent={discountPercent}
+          />
           <div className="mt-4">
             {shopStatus && !shopStatus.open ? (
               <div className="border border-amber-400 bg-amber-50 p-4">
@@ -300,6 +409,11 @@ export function CheckoutForm() {
                     "Order Monday through Friday — all orders ship out on Monday."}
                 </p>
               </div>
+            ) : quote.status !== "ready" ? (
+              <p className="text-sm text-gray-600">
+                Enter your shipping details (including ZIP code) to continue to
+                payment.
+              </p>
             ) : (
               <>
                 <h2 className="font-bold mb-2">Payment</h2>

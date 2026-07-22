@@ -58,17 +58,10 @@ export const POINTS = {
 export const DEXSCREENER_TOKEN_URL = (addr: string) =>
   `https://api.dexscreener.com/latest/dex/tokens/${addr}`;
 
-// Flat shipping rates from real Pirate Ship quotes (MS origin, priced to the
-// worst-case zone: cross-country to CA, 11.25x8.75x6 box)
-export const SHIPPING_RATES = {
-  ground: 24, // UPS 3 Day Select
-  air: 28, // UPS 2nd Day Air
-} as const;
-
-export const SHIPPING_LABELS: Record<keyof typeof SHIPPING_RATES, string> = {
-  ground: "UPS 3 Day Select",
-  air: "UPS 2nd Day Air",
-};
+// Zone-based shipping prices live in lib/shipping.ts (server-side only, so
+// the client bundle carries nothing derived from the origin ZIP). The
+// cheapest possible option, shown as a floor in the cart:
+export const SHIPPING_FROM_USD = 10;
 
 // Shipping box (inches) — included in the Pirate Ship CSV export
 export const BOX_DIMENSIONS_IN = { length: 11.25, width: 8.75, height: 6 } as const;

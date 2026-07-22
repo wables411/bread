@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { listRecentOrders } from "@/lib/orders";
-import {
-  PRODUCTS,
-  PACKAGING_WEIGHT_OZ,
-  SHIPPING_LABELS,
-  BOX_DIMENSIONS_IN,
-} from "@/lib/constants";
+import { BOX_DIMENSIONS_IN } from "@/lib/constants";
+import { orderWeightOz, serviceForExport } from "@/lib/shipping";
 
 export const dynamic = "force-dynamic";
 
@@ -70,12 +66,7 @@ export async function GET(req: NextRequest) {
     ];
 
     const rows = orders.map((o) => {
-      const weightOz =
-        PACKAGING_WEIGHT_OZ +
-        o.items.reduce((sum, i) => {
-          const product = PRODUCTS.find((p) => p.id === i.product);
-          return sum + (product?.weightOz ?? 32) * i.qty;
-        }, 0);
+      const weightOz = orderWeightOz(o.items);
       const itemsDesc = o.items.map((i) => `${i.product} x${i.qty}`).join("; ");
       const qty = o.items.reduce((s, i) => s + i.qty, 0);
       return [
@@ -95,7 +86,7 @@ export async function GET(req: NextRequest) {
         BOX_DIMENSIONS_IN.length,
         BOX_DIMENSIONS_IN.width,
         BOX_DIMENSIONS_IN.height,
-        SHIPPING_LABELS[o.shipping_option] ?? o.shipping_option,
+        serviceForExport(o.zip, o.shipping_option),
         o.total_usd.toFixed(2),
         o.verification === "verified" ? "paid" : `CHECK: ${o.verification}`,
         o.notes ?? "",

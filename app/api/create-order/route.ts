@@ -9,9 +9,10 @@ import {
 } from "@/lib/orders";
 import { verifyPayment, senderHoldsDiscountNft } from "@/lib/verify-payment";
 import { getPaymentOption } from "@/lib/payment-options";
-import { PRODUCTS, SHIPPING_RATES } from "@/lib/constants";
+import { PRODUCTS } from "@/lib/constants";
+import { quoteShipping, orderWeightOz } from "@/lib/shipping";
 import { isShopOpen, CLOSED_MESSAGE } from "@/lib/shop-schedule";
-import type { OrderItem, ShippingOption } from "@/lib/types";
+import type { OrderItem } from "@/lib/types";
 
 const NFT_DISCOUNT_PERCENT = 15;
 const TX_HASH_REGEX = /^0x[0-9a-fA-F]{64}$/;
@@ -50,7 +51,13 @@ async function sendOrderEmails(order: StoredOrder) {
     <p>Total: $${order.total_usd.toFixed(2)} USD</p>
     <p>Payment: ${order.payment_method} — ${order.payment_amount ?? "—"}</p>
     ${order.tx_hash ? `<p>Tx: <a href="${explorer}">${order.tx_hash}</a></p>` : ""}
-    <p>All orders ship out on Monday — baked fresh, vacuum-sealed after cooling.</p>
+    <p>All orders ship out on Monday${
+      order.shipping_option === "oneday"
+        ? " and arrive Tuesday"
+        : order.shipping_option === "twoday"
+          ? " and arrive Wednesday"
+          : ""
+    } — baked fresh, vacuum-sealed after cooling.</p>
   `;
 
   const flags: string[] = [];
@@ -145,7 +152,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!(shipping_option in SHIPPING_RATES)) {
+    if (shipping_option !== "oneday" && shipping_option !== "twoday") {
       return NextResponse.json(
         { error: "Unknown shipping option" },
         { status: 400 }
@@ -173,7 +180,26 @@ export async function POST(req: NextRequest) {
     }
 
     const subtotal = orderItems.reduce((s, i) => s + i.price * i.qty, 0);
-    const shipping = SHIPPING_RATES[shipping_option as ShippingOption];
+
+    // Shipping is recomputed from the destination ZIP + order weight — the
+    // client-selected price is never trusted
+    const shipQuote = quoteShipping(String(zip), orderWeightOz(orderItems));
+    if (!shipQuote.supported || !shipQuote.prices) {
+      return NextResponse.json(
+        { error: shipQuote.reason ?? "We can't ship to this ZIP code" },
+        { status: 400 }
+      );
+    }
+    const shipping =
+      shipping_option === "oneday"
+        ? shipQuote.prices.oneday
+        : shipQuote.prices.twoday;
+    if (shipping === null) {
+      return NextResponse.json(
+        { error: "1-day delivery isn't available for this address" },
+        { status: 400 }
+      );
+    }
     const fullTotal = round2(subtotal + shipping);
     const discountedTotal = round2(fullTotal * (1 - NFT_DISCOUNT_PERCENT / 100));
 

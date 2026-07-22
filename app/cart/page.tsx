@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/lib/cart-store";
 import { useWeeklyInventory } from "@/lib/use-weekly-inventory";
-import { SHIPPING_RATES } from "@/lib/constants";
+import { SHIPPING_FROM_USD } from "@/lib/constants";
 import { PriceEquivalents } from "@/components/PriceEquivalents";
 import { toast } from "sonner";
 
@@ -46,11 +46,7 @@ export default function CartPage() {
     );
   }
 
-  const shippingEstimate = Math.min(
-    SHIPPING_RATES.ground,
-    SHIPPING_RATES.air
-  );
-  const totalEstimate = subtotal() + shippingEstimate;
+  const totalEstimate = subtotal() + SHIPPING_FROM_USD;
 
   return (
     <div>
@@ -147,9 +143,10 @@ export default function CartPage() {
       <div className="mt-4">
         <p>Subtotal: ${subtotal().toFixed(2)}</p>
         <p className="text-sm text-gray-600">
-          Shipping (estimate): ${shippingEstimate.toFixed(2)} – select at checkout
+          Shipping: from ${SHIPPING_FROM_USD.toFixed(2)} — priced by ZIP code at
+          checkout (1 or 2 day delivery)
         </p>
-        <p className="font-bold mt-2">Est. total: ${totalEstimate.toFixed(2)}</p>
+        <p className="font-bold mt-2">Est. total: ${totalEstimate.toFixed(2)}+</p>
         <div className="mt-4 p-4 border border-gray-300">
           <PriceEquivalents totalUsd={totalEstimate} />
         </div>

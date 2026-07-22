@@ -1,8 +1,6 @@
 "use client";
 
 import type { CartItem } from "@/lib/types";
-import { SHIPPING_RATES, SHIPPING_LABELS } from "@/lib/constants";
-import type { ShippingOption } from "@/lib/types";
 
 const PRODUCT_NAMES: Record<string, string> = {
   loaf: "Bread Loaf",
@@ -11,7 +9,8 @@ const PRODUCT_NAMES: Record<string, string> = {
 
 interface OrderSummaryProps {
   items: CartItem[];
-  shippingOption: ShippingOption;
+  /** null while the shipping quote is loading / ZIP not entered yet */
+  shipping: { label: string; price: number } | null;
   paymentMethod?: string | null;
   discountPercent?: number;
 }
@@ -25,10 +24,9 @@ const PAYMENT_LABELS: Record<string, string> = {
   "cult-ethereum": "$CULT (Ethereum)",
 };
 
-export function OrderSummary({ items, shippingOption, paymentMethod, discountPercent = 0 }: OrderSummaryProps) {
+export function OrderSummary({ items, shipping, paymentMethod, discountPercent = 0 }: OrderSummaryProps) {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const shipping = SHIPPING_RATES[shippingOption];
-  const preDiscountTotal = subtotal + shipping;
+  const preDiscountTotal = subtotal + (shipping?.price ?? 0);
   const discountAmount = discountPercent > 0 ? Math.round(preDiscountTotal * (discountPercent / 100) * 100) / 100 : 0;
   const total = preDiscountTotal - discountAmount;
 
@@ -50,9 +48,11 @@ export function OrderSummary({ items, shippingOption, paymentMethod, discountPer
           </tr>
           <tr>
             <td colSpan={2}>
-              Shipping ({SHIPPING_LABELS[shippingOption]})
+              Shipping{shipping ? ` (${shipping.label})` : ""}
             </td>
-            <td className="text-right">${shipping.toFixed(2)}</td>
+            <td className="text-right">
+              {shipping ? `$${shipping.price.toFixed(2)}` : "enter ZIP"}
+            </td>
           </tr>
           {discountPercent > 0 && (
             <tr className="text-green-700">

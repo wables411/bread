@@ -12,7 +12,9 @@ export interface OrderItem {
   price: number;
 }
 
-export type ShippingOption = "ground" | "air";
+// "oneday" arrives Tuesday, "twoday" arrives Wednesday (all orders ship Monday).
+// "ground"/"air" are legacy values on orders placed before zone-based pricing.
+export type ShippingOption = "oneday" | "twoday" | "ground" | "air";
 
 // Payment method = token + chain (e.g. usdc-base, eth-ethereum)
 export type PaymentMethod =

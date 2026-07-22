@@ -23,7 +23,7 @@ export const checkoutSchema = z.object({
   ),
   zip: z.string().regex(US_ZIP_REGEX, "5-digit US zip required"),
   phone: z.string().min(10, "Phone required").max(20),
-  shipping_option: z.enum(["ground", "air"]),
+  shipping_option: z.enum(["oneday", "twoday"]),
   payment_amount: z.string().max(50).optional(),
   notes: z.string().max(500).optional(),
 });
