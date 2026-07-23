@@ -32,6 +32,39 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // ?emailtest=1 — authenticated diagnostic: send a test email to YOUR_EMAIL
+  // using the live server environment, and return exactly what Resend said.
+  // Proves the production email pipeline without needing a real order.
+  if (req.nextUrl.searchParams.get("emailtest") === "1") {
+    const key = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM_EMAIL || "orders@resend.dev";
+    const to = process.env.YOUR_EMAIL;
+    const env = {
+      RESEND_API_KEY: key ? "set" : "MISSING",
+      RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL || "MISSING (would fall back to orders@resend.dev)",
+      YOUR_EMAIL: to || "MISSING",
+    };
+    if (!key || !to) {
+      return NextResponse.json({ ok: false, env, error: "Missing env var(s) — see env" });
+    }
+    try {
+      const { Resend } = await import("resend");
+      const { data, error } = await new Resend(key).emails.send({
+        from,
+        to,
+        subject: "orderbread.online production email test",
+        html: "<p>Sent from the live Netlify function using its own environment. If you can read this, production order emails work.</p>",
+      });
+      return NextResponse.json({ ok: !error, env, resend: error ?? data });
+    } catch (e) {
+      return NextResponse.json({
+        ok: false,
+        env,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
   const days = Math.min(
     365,
     Math.max(1, parseInt(req.nextUrl.searchParams.get("days") ?? "14") || 14)

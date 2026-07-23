@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import {
   saveOrder,
+  updateOrder,
   weeklyQuantitySold,
   findOrderByTxHash,
   WEEKLY_CAP,
@@ -27,10 +28,15 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Send customer receipt + merchant notification via Resend */
-async function sendOrderEmails(order: StoredOrder) {
+/**
+ * Send customer receipt + merchant notification via Resend.
+ * Returns failure descriptions (empty array = both sent). NOTE: the Resend
+ * SDK does NOT throw on API errors — it returns { error }, which the old
+ * code ignored, so rejected sends looked like successes.
+ */
+async function sendOrderEmails(order: StoredOrder): Promise<string[]> {
   const key = process.env.RESEND_API_KEY;
-  if (!key) return;
+  if (!key) return ["RESEND_API_KEY not set in environment — no emails sent"];
   const resend = new Resend(key);
   const merchantEmail = process.env.YOUR_EMAIL;
   const from = process.env.RESEND_FROM_EMAIL || "orders@resend.dev";
@@ -81,21 +87,36 @@ async function sendOrderEmails(order: StoredOrder) {
     ${order.notes ? `<p>Notes: ${order.notes}</p>` : ""}
   `;
 
-  await resend.emails.send({
-    from,
-    to: order.email,
-    subject: `Order #${order.id} — $BREAD Store`,
-    html: receiptHtml,
-  });
-
-  if (merchantEmail) {
-    await resend.emails.send({
+  // Send independently so one failure can't block the other
+  const failures: string[] = [];
+  try {
+    const { error } = await resend.emails.send({
       from,
-      to: merchantEmail,
-      subject: `[New Order] #${order.id}${flags.length ? " ⚠ NEEDS REVIEW" : ""}`,
-      html: notifyHtml,
+      to: order.email,
+      subject: `Order #${order.id} — $BREAD Store`,
+      html: receiptHtml,
     });
+    if (error) failures.push(`customer receipt: ${JSON.stringify(error)}`);
+  } catch (e) {
+    failures.push(`customer receipt: ${e instanceof Error ? e.message : String(e)}`);
   }
+
+  if (!merchantEmail) {
+    failures.push("YOUR_EMAIL not set — merchant was not notified");
+  } else {
+    try {
+      const { error } = await resend.emails.send({
+        from,
+        to: merchantEmail,
+        subject: `[New Order] #${order.id}${flags.length ? " ⚠ NEEDS REVIEW" : ""}`,
+        html: notifyHtml,
+      });
+      if (error) failures.push(`merchant alert: ${JSON.stringify(error)}`);
+    } catch (e) {
+      failures.push(`merchant alert: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return failures;
 }
 
 export async function POST(req: NextRequest) {
@@ -300,7 +321,16 @@ export async function POST(req: NextRequest) {
     });
 
     try {
-      await sendOrderEmails(order);
+      const emailFailures = await sendOrderEmails(order);
+      if (emailFailures.length > 0) {
+        console.error(`Order ${order.id} email failures:`, emailFailures);
+        // Surface on the order so the CSV export shows it — silent email
+        // loss cost us the first real order's notifications
+        order.notes = [`⚠ EMAIL FAILED: ${emailFailures.join("; ")}`, order.notes]
+          .filter(Boolean)
+          .join(" | ");
+        await updateOrder(order);
+      }
     } catch (emailErr) {
       console.error("Email send failed:", emailErr);
     }
