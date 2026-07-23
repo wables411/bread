@@ -130,8 +130,16 @@ export function CheckoutForm() {
 
   const prepareOrder = useCallback(async (): Promise<CheckoutFormData | null> => {
     setError(null);
-    const valid = await trigger();
-    if (!valid) return null;
+    // shouldFocus jumps to the first invalid field — on mobile it's usually
+    // scrolled off-screen above the pay button, which made a failed
+    // validation look like the button did nothing.
+    const valid = await trigger(undefined, { shouldFocus: true });
+    if (!valid) {
+      const msg = "Please fix the highlighted fields before paying.";
+      setError(msg);
+      toast.error(msg);
+      return null;
+    }
 
     // Shipping price must be resolved from the ZIP before payment
     if (quote.status !== "ready") {
@@ -144,29 +152,37 @@ export function CheckoutForm() {
       return null;
     }
 
-    // Confirm the shop is open and supply exists BEFORE taking payment
-    try {
-      const res = await fetch("/api/weekly-inventory");
-      const inv = await res.json();
-      if (res.ok && inv.shopOpen === false) {
-        const msg = inv.closedMessage || "Shop is closed on weekends.";
-        setShopStatus({ open: false, shipDate: inv.shipDate, message: msg });
-        setError(msg);
-        toast.error(msg);
-        return null;
+    // Re-check shop open + supply WITHOUT blocking the tap: on mobile, any
+    // network await between the user's tap and the wallet request breaks the
+    // browser's user-activation window and the wallet never opens ("nothing
+    // happens"). The check runs concurrently — if it fails, the user sees the
+    // message and can cancel in their wallet; the server re-validates at
+    // order creation regardless, so nothing slips through.
+    void (async () => {
+      try {
+        const res = await fetch("/api/weekly-inventory");
+        const inv = await res.json();
+        if (res.ok && inv.shopOpen === false) {
+          const msg = inv.closedMessage || "Shop is closed on weekends.";
+          setShopStatus({ open: false, shipDate: inv.shipDate, message: msg });
+          setError(msg);
+          toast.error(msg);
+        } else if (
+          res.ok &&
+          typeof inv.available === "number" &&
+          itemCount() > inv.available
+        ) {
+          const msg =
+            inv.available === 0
+              ? "Sold out for this week — check back next week."
+              : `Only ${inv.available} left this week. Please reduce your cart.`;
+          setError(msg);
+          toast.error(msg);
+        }
+      } catch {
+        // Inventory check unavailable — the server re-checks at order creation
       }
-      if (res.ok && typeof inv.available === "number" && itemCount() > inv.available) {
-        const msg =
-          inv.available === 0
-            ? "Sold out for this week — check back next week."
-            : `Only ${inv.available} left this week. Please reduce your cart.`;
-        setError(msg);
-        toast.error(msg);
-        return null;
-      }
-    } catch {
-      // Inventory check unavailable — the server re-checks at order creation
-    }
+    })();
 
     return getValues();
   }, [trigger, getValues, itemCount, quote]);
